@@ -12,6 +12,7 @@ from Bio import SeqIO
 import argparse
 from more_itertools import windowed
 import gzip
+import csv
 
 
 def parse_args():
@@ -21,8 +22,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Get anchors from a fasta file")
     parser.add_argument("input", help="Input fasta file")
     parser.add_argument("output", help="Output file")
-    parser.add_argument("-k", "--kmer", help="Kmer length", default=27)
-    parser.add_argument("-s", "--step", help="Step size", default=1)
+    parser.add_argument("-k", "--kmer", help="Kmer length", default=27, type=int)
+    parser.add_argument("-s", "--step", help="Step size", default=1, type=int)
     parser.add_argument(
         "-r", "--record", help="Record to get anchors from", required=False
     )
@@ -61,8 +62,8 @@ def write_out(anchors: list, output_file: str) -> None:
     Write out anchors to file
     """
     with open(output_file, "w") as f:
-        for anchor in anchors:
-            f.write(anchor + "\n")
+        csv_writer = csv.writer(f, delimiter="\t")
+        csv_writer.writerows([[anchor.upper()] for anchor in anchors])
 
 
 def main() -> None:
