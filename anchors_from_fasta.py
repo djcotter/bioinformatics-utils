@@ -53,7 +53,7 @@ def get_kmers(record: str, k: int, s: int) -> list:
     Will not report the last kmer if the step size causes the window to advance
     past the end of the record
     """
-    kmers = windowed(str(record), 27, step=s)
+    kmers = windowed(str(record), k, step=s)
     return ["".join(kmer) for kmer in kmers if None not in kmer]
 
 
