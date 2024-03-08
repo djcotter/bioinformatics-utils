@@ -1,8 +1,9 @@
 """
 anchors_from_fasta.py
 
-Get anchors of a defined length (k) by sliding in windows (with offset s)
-along a record (or all records of a provided fasta file)
+Get anchors of a defined length (-k) by sliding in windows (with offset -s)
+along all records (or a single record; --record) in a fasta file and write them to a file
+Can also get the reverse complement of the anchors (--reverse)
 
 Daniel Cotter -- 01/16/24
 """
