@@ -2,7 +2,7 @@
 convert_satc_format.py
 Daniel Cotter -- 02/16/24
 
-Convert satc dump files from the old format (count, anchor+target, sample) 
+Convert satc dump files from the old format (count, anchor+target, sample)
 to the new format (sample, anchor, target, count)
 """
 
