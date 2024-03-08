@@ -24,8 +24,9 @@ def parse_args():
     parser.add_argument("output", help="Output file")
     parser.add_argument("-k", "--kmer", help="Kmer length", default=27, type=int)
     parser.add_argument("-s", "--step", help="Step size", default=1, type=int)
+    parser.add_argument("--record", help="Record to get anchors from", required=False)
     parser.add_argument(
-        "-r", "--record", help="Record to get anchors from", required=False
+        "-r", "--reverse", help="Reverse complement", action="store_true"
     )
     return parser.parse_args()
 
@@ -84,6 +85,9 @@ def main() -> None:
         records = [record.seq for record in records if record.id == fasta_record]
     else:
         records = [record.seq for record in records]
+    if args.reverse:
+        reverse_records = [record.reverse_complement() for record in records]
+        records.extend(reverse_records)
     # get anchors
     anchors = [get_kmers(record, kmer, step) for record in records]
     # collapse anchors into a single list
