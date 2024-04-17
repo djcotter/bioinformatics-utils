@@ -95,14 +95,14 @@ def write_fasta(
                             seq = "".join(
                                 [
                                     anchor
-                                    + current_anchors.get(anchor, missing_token)[0]
+                                    + current_anchors.get(anchor, [missing_token, 0])[0]
                                     for anchor in anchors
                                 ]
                             )
                         else:
                             seq = "".join(
                                 [
-                                    current_anchors.get(anchor, missing_token)[0]
+                                    current_anchors.get(anchor, [missing_token, 0])[0]
                                     for anchor in anchors
                                 ]
                             )
@@ -121,14 +121,14 @@ def write_fasta(
                 # make the fasta format anchor followed by target
                 seq = "".join(
                     [
-                        anchor + current_anchors.get(anchor, missing_token)[0]
+                        anchor + current_anchors.get(anchor, [missing_token, 0])[0]
                         for anchor in anchors
                     ]
                 )
             else:
                 seq = "".join(
                     [
-                        current_anchors.get(anchor, missing_token)[0]
+                        current_anchors.get(anchor, [missing_token, 0])[0]
                         for anchor in anchors
                     ]
                 )
@@ -150,8 +150,19 @@ def main():
     # temp file should be basename input file with .tmp extension
     tmp_file = f"{input_file}.tmp"
     prefilter_input(input_file, anchor_file, tmp_file)
+    # get the missing token as N repeated times the length of a target
+    with open(tmp_file, "r") as f:
+        # skip the header line
+        f.readline()
+        missing_token = "N" * len(f.readline().strip().split("\t")[2])
     # write the fasta file
-    write_fasta(tmp_file, anchors, output_file, include_anchor=include_anchor)
+    write_fasta(
+        tmp_file,
+        anchors,
+        output_file,
+        include_anchor=include_anchor,
+        missing_token=missing_token,
+    )
     # remove the temporary file
     os.system(f"rm {tmp_file}")
     return None
