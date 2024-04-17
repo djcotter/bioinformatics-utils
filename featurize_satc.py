@@ -94,14 +94,15 @@ def write_fasta(
                             # make the fasta format anchor followed by target
                             seq = "".join(
                                 [
-                                    anchor + current_anchors.get(anchor, missing_token)
+                                    anchor
+                                    + current_anchors.get(anchor, missing_token)[0]
                                     for anchor in anchors
                                 ]
                             )
                         else:
                             seq = "".join(
                                 [
-                                    current_anchors.get(anchor, missing_token)
+                                    current_anchors.get(anchor, missing_token)[0]
                                     for anchor in anchors
                                 ]
                             )
@@ -120,13 +121,16 @@ def write_fasta(
                 # make the fasta format anchor followed by target
                 seq = "".join(
                     [
-                        anchor + current_anchors.get(anchor, missing_token)
+                        anchor + current_anchors.get(anchor, missing_token)[0]
                         for anchor in anchors
                     ]
                 )
             else:
                 seq = "".join(
-                    [current_anchors.get(anchor, missing_token) for anchor in anchors]
+                    [
+                        current_anchors.get(anchor, missing_token)[0]
+                        for anchor in anchors
+                    ]
                 )
             record = SeqRecord(Seq(seq), id=current_sample, description="")
             SeqIO.write(record, f, "fasta")
