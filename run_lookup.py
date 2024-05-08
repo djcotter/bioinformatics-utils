@@ -65,7 +65,7 @@ def run_lookup(anchor_fasta, lookup_file, output_file, splash_bin):
     lookup_cmd = (
         f"{lookup_table} query "
         "--kmer_skip 1 --truncate_paths --stats_fmt with_stats "
-        "{anchor_fasta} {lookup_file} {output_file}"
+        "{Path(anchor_fasta).resolve()} {Path(lookup_file).resolve()} {Path(output_file).resolve}"
     )
     print(f"Running command: {lookup_cmd}")
     os.system(lookup_cmd)
