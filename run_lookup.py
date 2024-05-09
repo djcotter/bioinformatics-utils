@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument(
         "--splash_bin",
         type=Path,
-        default=Path("/oak/stanfor/groups/horence/dcotter1/splash-2.6.1"),
+        default=Path("/oak/stanford/groups/horence/dcotter1/splash-2.6.1"),
     )
     return parser.parse_args()
 
@@ -64,8 +64,8 @@ def run_lookup(anchor_fasta, lookup_file, output_file, splash_bin):
     lookup_table = Path(splash_bin) / "lookup_table"
     lookup_cmd = (
         f"{lookup_table} query "
-        "--kmer_skip 1 --truncate_paths --stats_fmt with_stats "
-        "{Path(anchor_fasta).resolve()} {Path(lookup_file).resolve()} {Path(output_file).resolve}"
+        f"--kmer_skip 1 --truncate_paths --stats_fmt with_stats "
+        f"{Path(anchor_fasta).resolve()} {Path(lookup_file).resolve()} {Path(output_file).resolve()}"
     )
     print(f"Running command: {lookup_cmd}")
     os.system(lookup_cmd)
@@ -74,7 +74,7 @@ def run_lookup(anchor_fasta, lookup_file, output_file, splash_bin):
 
 def read_lookup_output(output_file):
     # read in the output file and return the results
-    with open(output_file, "r") as f:
+    with open(Path(output_file).resolve(), "r") as f:
         results = [line.strip().split("\t") for line in f]
     return results
 
