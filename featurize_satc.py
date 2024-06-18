@@ -82,6 +82,7 @@ def write_fasta(
             current_anchors = {}
             for line in g:
                 sample, anchor, target, count = line.strip().split("\t")[:4]
+                count = int(count)
                 if sample[1] == "anchor":
                     continue
                 if sample != current_sample:
