@@ -63,7 +63,7 @@ def get_kmers(record: str, k: int, s: int) -> list:
     return kmers, start, end
 
 
-def get_unique_kmers(current_kmer_dict: dict, new_kmers: list) -> dict:
+def get_unique_kmers(current_kmer_dict: dict, new_kmers: list, k: int) -> dict:
     """
     Take in an existing dictionary of kmers and their unique indices and add new kmers
     with a new index if thet are not already in the dictionary
@@ -71,7 +71,7 @@ def get_unique_kmers(current_kmer_dict: dict, new_kmers: list) -> dict:
     new_i = len(current_kmer_dict)
     for kmer in new_kmers:
         if kmer not in current_kmer_dict:
-            current_kmer_dict[kmer] = new_i
+            current_kmer_dict[kmer] = f"{k}mer_{new_i}"
             new_i += 1
     return current_kmer_dict
 
@@ -123,7 +123,7 @@ def main() -> None:
     kmer_order = []
     for record in records:
         kmers, start, end = get_kmers(record.seq, kmer_length, step_size)
-        kmer_dict = get_unique_kmers(kmer_dict, kmers)
+        kmer_dict = get_unique_kmers(kmer_dict, kmers, kmer_length)
         kmer_ordering = generate_kmer_order(kmers, start, end, kmer_dict)
         kmer_ordering = [list(km) for km in kmer_ordering]
         kmer_ordering = [[record.id] + km for km in kmer_ordering]
