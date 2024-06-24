@@ -126,7 +126,7 @@ for (i in 1:length(metadata_labels)) {
     mutate(coefficients=paste0("[", coefficients, "]")) %>%
     mutate(classes=paste0("[", paste(names(coef), collapse=","), "]")) %>%
     mutate(metadata_category=metadata_labels[i], accuracy = acc) %>%
-    select(metadata_category, feature, accuracy, coefficients, classes)
+    select(metadata_category, feature, accuracy, classes, coefficients)
   
   # plot confusion matrix
   confusion_matrix <- table(y_test, y_pred)
