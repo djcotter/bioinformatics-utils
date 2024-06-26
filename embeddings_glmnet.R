@@ -21,7 +21,7 @@ if (is.null(opt$input) || is.null(opt$metadata) || is.null(opt$output_prefix)) {
   metadata_file <- opt$metadata
   metadata_column <- opt$metadata_column
   output_prefix <- opt$output_prefix
-  min_num_per_category <- 100
+  min_num_per_category <- opt$min_num_per_category
 }
 
 
