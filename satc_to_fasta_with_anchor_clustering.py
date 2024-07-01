@@ -64,9 +64,11 @@ def prefilter_input(input_file, anchor_file, tmp_file):
     Saves the output to a temporary file.
     """
     # filter the input file to only include the anchors
-    os.system(f"grep -Ff <(cut -f2 {anchor_file}) {input_file} > {tmp_file}")
+    os.system(
+        f'/bin/bash -c "grep -Ff <(cut -f2 {anchor_file}) {input_file} > {tmp_file}"'
+    )
     # sort the input file by sample
-    os.system(f"sort -k1,1 -o {tmp_file} {tmp_file}")
+    os.system(f"sort -k1,1 -k2,2 -k4,4rn -o {tmp_file} {tmp_file}")
     return None
 
 
