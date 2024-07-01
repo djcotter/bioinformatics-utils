@@ -151,3 +151,8 @@ def main():
     # remove the temporary file
     os.system(f"rm {tmp_file}")
     return None
+
+
+# execute main
+if __name__ == "__main__":
+    main()
