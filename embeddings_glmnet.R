@@ -9,6 +9,7 @@ option_list <- list(
   make_option(c("-m", "--metadata"), type="character", default=NULL, help="Metadata file"),
   make_option(c("--metadata_column"), type="character", default=NULL, help="Metadata column to use for classification"),
   make_option(c("--min_num_per_category"), type="integer", default=100, help="Minimum number of samples per category"),
+  make_option(c("--max_classes"), type="integer", default=NULL, help="Maximum number of classes per metadata column. Skip if more columns."),
   make_option(c("-o", "--output_prefix"), type="character", default=NULL, help="Output file")
 )
 opt_parser <- OptionParser(option_list=option_list)
@@ -22,6 +23,7 @@ if (is.null(opt$input) || is.null(opt$metadata) || is.null(opt$output_prefix)) {
   metadata_column <- opt$metadata_column
   output_prefix <- opt$output_prefix
   min_num_per_category <- opt$min_num_per_category
+  max_classes <- opt$max_classes
 }
 
 
@@ -68,7 +70,8 @@ for (i in 1:length(metadata_labels)) {
   print(metadata_labels[i])
   metadata <- all_metadata %>%
     select(sample_name, metadata_labels[i]) %>%
-    rename(class=metadata_labels[i])
+    rename(class=metadata_labels[i]) %>%
+    mutate(class=ifelse(class=="", NA, class))
   
   # merge metadata with embeddings
   dt <- merge(main_dt, metadata, by.x="sample_name", by.y="sample_name")
@@ -86,6 +89,12 @@ for (i in 1:length(metadata_labels)) {
   if (nrow(dt[, .N, by=class]) < 2) {
     print("Less than 2 classes remaining. Skipping...")
     next
+  }
+  if (!is.null(max_classes)) {
+    if (nrow(dt[, .N, by=class]) > max_classes) {
+      print(paste("More than", max_classes, "in metadata column. Condsider setting --max_classes higher. Skipping..."))
+      next
+   }
   }
   
   # decide on the number of samples to keep in the training set
