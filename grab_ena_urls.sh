@@ -10,6 +10,6 @@ accessions=$1
 
 # loop over the accessions and get the fastq files
 while read acc; do
-    ffq --ftp $acc | grep -Po  '(?<=url": ") ftp://.*(?=")'
+    ffq --ftp $acc | grep -Po  '(?<=url": ")ftp://.*(?=")'
 done < $accessions
 
