@@ -7,9 +7,13 @@
 
 # get the list of accessions
 accessions=$1
+output=$2
+
+# clear the output file
+> $output
 
 # loop over the accessions and get the fastq files
-while read acc; do
-    ffq --ftp $acc | grep -Po  '(?<=url": ")ftp://.*(?=")'
-done < $accessions
+# and write the paths to the output file
+# do this in parallel
+cat $accessions | parallel ffq --ftp {} | grep -Po '(?<=url": ")ftp://.*(?=")' >> $output
 
