@@ -5,6 +5,7 @@ Tavor's code
 
 import time
 import numpy as np
+import scipy
 import networkx as nx
 import argparse
 
@@ -46,7 +47,7 @@ def compare_rows_hash(A, B):
     n, k = A.shape
     hash_A = np.array([hash(tuple(row)) for row in A])
     hash_B = np.array([hash(tuple(row)) for row in B])
-    return hash_A[:, None] == hash_B
+    return scipy.sparse.csr_matrix(hash_A[:, None] == hash_B)
 
 
 # main function
@@ -54,17 +55,15 @@ def compare_rows_hash(A, B):
 # output: a list of lists, where each list is a cluster of sequences
 def clusterAnchors(anchLst, maxShiftDist=5):
     start = time.time()
-    bpArr = np.array([[bpToInt(x) for x in s] for s in anchLst])
+    bpArr = np.array([[bpToInt(x) for x in s] for s in anchLst], dtype=np.uint8)
 
-    # generate similarity matrix, where i,j=1 indicates that
-    # read i falls ahead of read j within shift distance maxShiftDist
     n, k = bpArr.shape
     assert maxShiftDist <= k
 
-    simMat = np.zeros((n, n), dtype=bool)
+    simMat = scipy.sparse.csr_matrix((n, n), dtype=bool)
     for shift in range(1, maxShiftDist + 1):
         simMatUpdate = compare_rows_hash(bpArr[:, shift:], bpArr[:, :-shift])
-        simMat = np.logical_or(simMat, simMatUpdate)
+        simMat = simMat + simMatUpdate
     print("Time until adjacency mat constructed", time.time() - start)
 
     # from this similarity matrix, generate clusters
@@ -86,8 +85,8 @@ def main():
     # return the first anchor in the cluster as the representative anchor
     with open(args.output, "w") as f:
         for i in range(len(clusters)):
-          for j in range(len(clusters[i])):
-            f.write(str(i) + "\t" + clusters[i][j] + "\n")
+            for j in range(len(clusters[i])):
+                f.write(str(i) + "\t" + clusters[i][j] + "\n")
     return None
 
 
