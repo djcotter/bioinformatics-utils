@@ -6,6 +6,7 @@ Tavor's code
 import time
 import numpy as np
 import scipy
+import levenshtein
 import networkx as nx
 import argparse
 
@@ -34,9 +35,11 @@ def clusterAnchors(anchLst):
     simMat = scipy.sparse.csr_matrix((len(anchLst), len(anchLst)), dtype=np.uint8)
     for i in range(len(anchLst)):
         for j in range(i, len(anchLst)):
-            simMat[i, j] = simMat[j, i] = scipy.spatial.distance.levenshtein(
-                anchLst[i], anchLst[j]
-            )
+            # levenshtien distance
+            dist = levenshtein.distance(anchLst[i], anchLst[j], score_cutoff=7)
+            if dist <= 5:
+                simMat[i, j] = 1
+                simMat[j, i] = 1
     print("Time until adjacency mat constructed", time.time() - start)
 
     # from this similarity matrix, generate clusters
