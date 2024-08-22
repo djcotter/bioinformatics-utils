@@ -6,7 +6,7 @@ Tavor's code
 import time
 import numpy as np
 import scipy
-import levenshtein
+import Levenshtein
 import networkx as nx
 import argparse
 
@@ -36,7 +36,7 @@ def clusterAnchors(anchLst):
     for i in range(len(anchLst)):
         for j in range(i, len(anchLst)):
             # levenshtien distance
-            dist = levenshtein.distance(anchLst[i], anchLst[j], score_cutoff=7)
+            dist = Levenshtein.distance(anchLst[i], anchLst[j], score_cutoff=7)
             if dist <= 5:
                 simMat[i, j] = 1
                 simMat[j, i] = 1
