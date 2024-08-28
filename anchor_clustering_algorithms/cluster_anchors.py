@@ -73,8 +73,8 @@ def adjacency_matrix(anchors, metric, threshold=5):
     start_time = time.time()
     if metric == "lev":
         # calculate this adjacency matrix sparsely
-        col_ind = random.sample(range(len(anchors)), len(anchors) * 0.5)
-        row_ind = random.sample(range(len(anchors)), len(anchors) * 0.5)
+        col_ind = random.sample(range(len(anchors)), round(len(anchors) * 0.5))
+        row_ind = random.sample(range(len(anchors)), round(len(anchors) * 0.5))
         simMat = scipy.sparse.csr_matrix((len(anchors), len(anchors)), dtype=np.uint8)
         for i in col_ind:
             for j in row_ind:
