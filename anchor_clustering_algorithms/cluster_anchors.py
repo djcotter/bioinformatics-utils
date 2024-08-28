@@ -17,6 +17,7 @@ import scipy
 import nltk
 import argparse
 from sklearn.cluster import SpectralClustering
+import random
 
 
 # parse arguments
@@ -28,7 +29,6 @@ def parse_args():
         "-m",
         "--metric",
         type=str,
-        required=True,
         default="lev",
         help="Similarity metric to use for clustering.",
     )
@@ -43,7 +43,7 @@ def parse_args():
         "-k",
         "--num_clusters",
         type=int,
-        required=True,
+        default=5000,
         help="Number of clusters to partition the anchors into.",
     )
     # add positional argument for input file
@@ -72,9 +72,12 @@ def read_anchors(input_file):
 def adjacency_matrix(anchors, metric, threshold=5):
     start_time = time.time()
     if metric == "lev":
+        # calculate this adjacency matrix sparsely
+        col_ind = random.sample(range(len(anchors)), len(anchors) * 0.5, replace=False)
+        row_ind = random.sample(range(len(anchors)), len(anchors) * 0.5, replace=False)
         simMat = scipy.sparse.csr_matrix((len(anchors), len(anchors)), dtype=np.uint8)
-        for i in range(len(anchors)):
-            for j in range(i, len(anchors)):
+        for i in col_ind:
+            for j in row_ind:
                 # levenshtien distance
                 dist = nltk.edit_distance(anchors[i], anchors[j])
                 if dist <= threshold:
