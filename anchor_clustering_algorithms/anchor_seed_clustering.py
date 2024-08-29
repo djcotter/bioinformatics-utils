@@ -12,7 +12,7 @@ Daniel Cotter
 
 # Import necessary libraries
 import numpy as np
-import nltk
+import Levenshtein
 import argparse
 
 
@@ -75,7 +75,7 @@ def create_seed_dict(anchors, N, distance_threshold=5):
     for i in range(1, len(anchors)):
         unique = True
         for seed in unique_seeds:
-            if nltk.edit_distance(anchors[i], seed) < distance_threshold:
+            if Levenshtein.distance(anchors[i], seed) < distance_threshold:
                 unique = False
                 break
         if unique:
@@ -98,7 +98,9 @@ def assign_anchors_to_seeds(anchors, seed_dict, distance_threshold=10):
         similarities = []
         # iterate through each anchor and calculate the similarity
         for anchor in anchors:
-            dist = nltk.edit_distance(seed, anchor)
+            dist = Levenshtein.distance(
+                seed, anchor, score_cutoff=distance_threshold + 1
+            )
             if dist < distance_threshold:
                 similarities.append(dist)
         # sort the similarities and store the top N
@@ -115,9 +117,9 @@ def main():
     # read in the anchor sequences from the input file
     anchors = read_anchors(args.input_file)
     # create a seed dictionary from the most unique N anchors
-    seed_dict = create_seed_dict(anchors, args.num_clusters)
+    seed_dict = create_seed_dict(anchors, args.num_clusters, args.distance_threshold)
     # assign each anchor to the seed that it is most similar to
-    rankings = assign_anchors_to_seeds(anchors, seed_dict)
+    rankings = assign_anchors_to_seeds(anchors, seed_dict, args.distance_threshold * 2)
     # write the cluster assignments to the output file
     with open(args.output_file, "w") as f:
         for seed_id, top_anchors in rankings.items():
