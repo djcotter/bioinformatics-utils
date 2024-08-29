@@ -109,7 +109,7 @@ def write_cluster_assignments(output_file, rankings):
     with open(output_file, "w") as f:
         for cluster_id, assigned_anchors in rankings.items():
             for anchor in assigned_anchors:
-                f.write(f"{cluster_id}\t{anchor}\n")
+                f.write(f"{cluster_id}\t{anchor}")
 
 
 # main function
