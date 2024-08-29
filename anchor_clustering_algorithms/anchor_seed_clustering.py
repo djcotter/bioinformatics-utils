@@ -126,7 +126,7 @@ def main():
             for anchor in top_anchors:
                 # write the seed id and the anchor sequence
                 # print(f"{seed_id}\t{anchor}")
-                f.write(f"{seed_id}\t{anchor}\n")
+                f.write(f"{seed_id}\t{anchor}")
 
 
 if __name__ == "__main__":
