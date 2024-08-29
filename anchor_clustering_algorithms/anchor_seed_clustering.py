@@ -106,7 +106,7 @@ def assign_anchors_to_seeds(anchors, seed_dict, distance_threshold=10):
         # sort the similarities and store the top N
         top_anchors = np.argsort(similarities)[:10]
         # store the top anchors in the rankings dict entry for this seed
-        rankings[seed_id] = [anchors[i] for i in top_anchors]
+        rankings[seed_id] = [seed] + [anchors[i] for i in top_anchors]
     return rankings
 
 
@@ -124,9 +124,9 @@ def main():
     with open(args.output_file, "w") as f:
         for seed_id, top_anchors in rankings.items():
             for anchor in top_anchors:
-                # print the seed id and the anchor sequence
-                print(f"{seed_id}\t{anchor}")
-                # f.write(f"{seed_id}\t{anchor}\n")
+                # write the seed id and the anchor sequence
+                # print(f"{seed_id}\t{anchor}")
+                f.write(f"{seed_id}\t{anchor}\n")
 
 
 if __name__ == "__main__":
