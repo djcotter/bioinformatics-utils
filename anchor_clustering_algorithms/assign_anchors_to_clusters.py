@@ -81,7 +81,7 @@ def assign_anchors_to_clusters(
     cluster_assignments,
     anchors,
     metric="lev",
-    distance_threshold=10,
+    distance_threshold=9,
     anchors_per_cluster=10,
 ):
     rankings = {}

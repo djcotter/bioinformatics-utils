@@ -65,7 +65,7 @@ def read_anchors(input_file):
 
 
 # create a seed dictionary from the most unique N anchors
-def create_seed_dict(anchors, N, distance_threshold=5):
+def create_seed_dict(anchors, N, distance_threshold=10):
     # create a list to store the seeds
     unique_seeds = []
     # place the first anchor in the seed dictionary
@@ -89,7 +89,7 @@ def create_seed_dict(anchors, N, distance_threshold=5):
 
 # for each seed, calculate each anchors similarity and return a ranked
 # list of the most similar anchors
-def assign_anchors_to_seeds(anchors, seed_dict, distance_threshold=10):
+def assign_anchors_to_seeds(anchors, seed_dict, distance_threshold=9):
     # create a dict to store rankings for the top anchors per seed
     rankings = {}
     # iterate through each seed and calculate each anchors similarity to it
