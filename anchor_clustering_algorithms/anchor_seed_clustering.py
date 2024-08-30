@@ -32,7 +32,7 @@ def parse_args():
         "-t",
         "--distance_threshold",
         type=int,
-        default=0,
+        default=10,
         help="Threshold for similarity metric.",
     )
     parser.add_argument(
@@ -89,7 +89,9 @@ def create_seed_dict(anchors, N, distance_threshold=10):
 
 # for each seed, calculate each anchors similarity and return a ranked
 # list of the most similar anchors
-def assign_anchors_to_seeds(anchors, seed_dict, distance_threshold=9):
+def assign_anchors_to_seeds(
+    anchors, seed_dict, distance_threshold=9, max_anchors_per_cluster=50
+):
     # create a dict to store rankings for the top anchors per seed
     rankings = {}
     # iterate through each seed and calculate each anchors similarity to it
@@ -104,7 +106,7 @@ def assign_anchors_to_seeds(anchors, seed_dict, distance_threshold=9):
             if dist < distance_threshold:
                 similarities.append(dist)
         # sort the similarities and store the top N
-        top_anchors = np.argsort(similarities)[:10]
+        top_anchors = np.argsort(similarities)[:max_anchors_per_cluster]
         # store the top anchors in the rankings dict entry for this seed
         rankings[seed_id] = [seed] + [anchors[i] for i in top_anchors]
     return rankings
@@ -119,7 +121,7 @@ def main():
     # create a seed dictionary from the most unique N anchors
     seed_dict = create_seed_dict(anchors, args.num_clusters, args.distance_threshold)
     # assign each anchor to the seed that it is most similar to
-    rankings = assign_anchors_to_seeds(anchors, seed_dict, args.distance_threshold * 2)
+    rankings = assign_anchors_to_seeds(anchors, seed_dict, args.distance_threshold - 1)
     # write the cluster assignments to the output file
     with open(args.output_file, "w") as f:
         for seed_id, top_anchors in rankings.items():
