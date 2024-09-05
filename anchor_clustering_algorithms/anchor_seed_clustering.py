@@ -72,6 +72,8 @@ def create_seed_dict(anchors, N, distance_threshold=10):
     unique_seeds.append(anchors[0])
     # proceed to the next anchor and compare it to the seeds
     # if it is unique enough, add it to the seed dictionary
+    # first shuffle the anchors to avoid bias
+    np.random.shuffle(anchors)
     for i in range(1, len(anchors)):
         unique = True
         for seed in unique_seeds:
@@ -89,26 +91,22 @@ def create_seed_dict(anchors, N, distance_threshold=10):
 
 # for each seed, calculate each anchors similarity and return a ranked
 # list of the most similar anchors
-def assign_anchors_to_seeds(
-    anchors, seed_dict, distance_threshold=9, max_anchors_per_cluster=50
-):
-    # create a dict to store rankings for the top anchors per seed
-    rankings = {}
-    # iterate through each seed and calculate each anchors similarity to it
-    for seed_id, seed in seed_dict.items():
-        # create a list to store the similarity scores
-        similarities = []
-        # iterate through each anchor and calculate the similarity
-        for anchor in anchors:
-            dist = Levenshtein.distance(
-                seed, anchor, score_cutoff=distance_threshold + 1
-            )
-            if dist < distance_threshold:
-                similarities.append(dist)
-        # sort the similarities and store the top N
-        top_anchors = np.argsort(similarities)[:max_anchors_per_cluster]
-        # store the top anchors in the rankings dict entry for this seed
-        rankings[seed_id] = [seed] + [anchors[i] for i in top_anchors]
+def assign_anchors_to_seeds(anchors, seed_dict, distance_threshold=9):
+    # create a dictionary to store the cluster assignments
+    rankings = {i: [] for i in seed_dict.keys()}
+    # loop through the anchors and calculate the similarity to each seed
+    for i, anchor in enumerate(anchors):
+        best_seed = None
+        best_distance = distance_threshold
+        for seed_id, seed in seed_dict.items():
+            distance = Levenshtein.distance(anchor, seed)
+            if distance < best_distance:
+                best_seed = seed_id
+                best_distance = distance
+        if best_seed is not None:
+            rankings[best_seed].append(anchor)
+        if i % 1000 == 0:
+            print(f"Processed {i} anchors")
     return rankings
 
 

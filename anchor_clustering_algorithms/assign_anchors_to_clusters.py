@@ -10,7 +10,6 @@ Daniel Cotter
 """
 
 # Import necessary libraries
-import numpy as np
 import Levenshtein
 import argparse
 
@@ -82,25 +81,46 @@ def assign_anchors_to_clusters(
     anchors,
     metric="lev",
     distance_threshold=9,
-    anchors_per_cluster=10,
 ):
+    # initialize dictionary to store the rankings of the new anchors for each cluster
     rankings = {}
-    # loop through the old clusters and calculate the similarity between the new anchors and the old cluster representatives
-    for cluster_id, old_anchors in cluster_assignments.items():
-        cluster_representative = old_anchors[0]
-        similarities = []
-        for anchor in anchors:
+    # loop through each anchor and calculate the similarity to each cluster
+    for anchor in anchors:
+        # initialize dictionary to store the similarity scores for each cluster
+        similarity_scores = {}
+        # loop through each cluster and calculate the similarity score
+        for cluster_id, assigned_anchors in cluster_assignments.items():
+            # calculate the similarity score based on the chosen metric
             if metric == "lev":
-                dist = Levenshtein.distance(
-                    cluster_representative, anchor, score_cutoff=distance_threshold + 1
+                similarity = min(
+                    [
+                        Levenshtein.distance(
+                            anchor, assigned_anchor, threshold=distance_threshold
+                        )
+                        for assigned_anchor in assigned_anchors
+                    ]
                 )
             else:
                 raise ValueError("Invalid metric specified.")
-            if dist < distance_threshold:
-                similarities.append(dist)
-        # sort the similarities and store the top N
-        top_anchors = np.argsort(similarities)[:anchors_per_cluster]
-        rankings[cluster_id] = [anchors[i] for i in top_anchors]
+            # store the similarity score in the dictionary
+            similarity_scores[cluster_id] = similarity
+        # remove any clusters that are not similar enough
+        similarity_scores = {
+            cluster_id: similarity
+            for cluster_id, similarity in similarity_scores.items()
+            if similarity <= distance_threshold
+        }
+        # assign the anchor to the cluster with the highest similarity score if there is one
+        # otherwise don't include the anchor in any cluster
+        if similarity_scores == {}:
+            continue
+        assigned_cluster = min(similarity_scores, key=lambda x: similarity_scores[x])
+        # add the anchor to the rankings dictionary
+        if assigned_cluster in rankings:
+            rankings[assigned_cluster].append(anchor)
+        else:
+            rankings[assigned_cluster] = [anchor]
+
     return rankings
 
 
