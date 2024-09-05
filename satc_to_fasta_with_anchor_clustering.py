@@ -108,7 +108,7 @@ def write_fasta(input_file, anchor_dict, output_file, num_targets=1, anchor_leng
                         record = SeqRecord(Seq(seq), id=current_sample, description="")
                         SeqIO.write(record, f, "fasta")
                     current_sample = sample
-                    current_anchors = []
+                    current_anchors = {}
                     anchor_clusters = []
                 if anchor_dict[anchor] not in anchor_clusters:
                     anchor_clusters.append(anchor_dict[anchor])

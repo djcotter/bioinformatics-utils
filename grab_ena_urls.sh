@@ -15,5 +15,5 @@ output=$2
 # loop over the accessions and get the fastq files
 # and write the paths to the output file
 # do this in parallel
-cat $accessions | parallel --delay 1 -j 8 ffq --ftp {} | grep -Po '(?<=url": ")ftp://.*(?=")' >> $output
+cat $accessions | parallel --delay .5 -j 32 ffq --ftp {} | grep -Po '(?<=url": ")ftp://.*(?=")' >> $output
 

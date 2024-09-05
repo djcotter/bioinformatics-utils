@@ -37,6 +37,10 @@ if (!"sample_name" %in% colnames(all_metadata)) {
   all_metadata <- all_metadata %>% rename(sample_name=colnames(all_metadata)[1])
 }
 
+# filter to make sure the metadata calculations are done on the samples that are actually present
+all_metadata <- all_metadata %>% filter(sample_name %in% main_dt$sample_name)
+main_dt <- main_dt %>% filter(sample_name %in% all_metadata$sample_name)
+
 # check if metadata column is present in metadata file
 if (!is.null(metadata_column)) {
   if (!metadata_column %in% colnames(all_metadata)) {
