@@ -95,7 +95,7 @@ def assign_anchors_to_clusters(
                 similarity = min(
                     [
                         Levenshtein.distance(
-                            anchor, assigned_anchor, threshold=distance_threshold
+                            anchor, assigned_anchor, score_cutoff=distance_threshold + 1
                         )
                         for assigned_anchor in assigned_anchors
                     ]
