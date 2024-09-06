@@ -10,7 +10,7 @@ Daniel Cotter
 """
 
 # Import necessary libraries
-import numpy as np
+# import numpy as np
 import Levenshtein
 import argparse
 
@@ -93,9 +93,10 @@ def assign_anchors_to_clusters(
         # loop through each cluster and calculate the similarity score
         for cluster_id, assigned_anchors in cluster_assignments.items():
             # randomly select up to 5 anchors from the cluster to compare to
-            assigned_anchors = np.random.choice(
-                assigned_anchors, min(5, len(assigned_anchors))
-            )
+            # assigned_anchors = np.random.choice(
+            #     assigned_anchors, min(5, len(assigned_anchors))
+            # )
+            assigned_anchors = assigned_anchors[0 : min(5, len(assigned_anchors))]
             # calculate the similarity score based on the chosen metric
             if metric == "lev":
                 similarity = min(
