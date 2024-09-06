@@ -86,10 +86,12 @@ def assign_anchors_to_clusters(
     # initialize dictionary to store the rankings of the new anchors for each cluster
     rankings = {}
     count = 0
+    print_count = 0
     # loop through each anchor and calculate the similarity to each cluster
     for anchor in anchors:
         # initialize dictionary to store the similarity scores for each cluster
         similarity_scores = {}
+        cluster_count = 0
         # loop through each cluster and calculate the similarity score
         for cluster_id, assigned_anchors in cluster_assignments.items():
             # randomly select up to 5 anchors from the cluster to compare to
@@ -111,6 +113,10 @@ def assign_anchors_to_clusters(
                 raise ValueError("Invalid metric specified.")
             # store the similarity score in the dictionary
             similarity_scores[cluster_id] = similarity
+            cluster_count = cluster_count + 1
+            if cluster_count % 1000 == 0 & print_count < 1000:
+                print(f"\tProcessed {cluster_count} clusters")
+                print_count = print_count + 1
         # remove any clusters that are not similar enough
         similarity_scores = {
             cluster_id: similarity
