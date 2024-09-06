@@ -10,9 +10,12 @@ Daniel Cotter
 """
 
 # Import necessary libraries
-# import numpy as np
+import numpy as np
 import Levenshtein
 import argparse
+from functools import partial
+import multiprocessing
+from multiprocessing import Pool
 
 
 # parse arguments
@@ -73,7 +76,59 @@ def read_anchors(input_file):
 def read_new_anchors(new_anchors):
     with open(new_anchors, "r") as f:
         anchors = f.readlines()
+    anchors = [anchor.strip() for anchor in anchors]
     return anchors
+
+
+# define a function to process each anchor and assign it to a cluster
+def process_anchor(
+    anchor,
+    cluster_assignments,
+    metric,
+    distance_threshold,
+):
+    # initialize dictionary to store the similarity scores for each cluster
+    similarity_scores = {}
+    # loop through each cluster and calculate the similarity score
+    for cluster_id, assigned_anchors in cluster_assignments.items():
+        # randomly select up to 5 anchors from the cluster to compare to
+        assigned_anchors = np.random.choice(
+            assigned_anchors, min(5, len(assigned_anchors))
+        )
+        # calculate the similarity score based on the chosen metric
+        if metric == "lev":
+            similarity = min(
+                [
+                    Levenshtein.distance(
+                        anchor, assigned_anchor, score_cutoff=distance_threshold + 1
+                    )
+                    for assigned_anchor in assigned_anchors
+                ]
+            )
+        else:
+            raise ValueError("Invalid metric specified.")
+        # store the similarity score in the dictionary
+        similarity_scores[cluster_id] = similarity
+    # remove any clusters that are not similar enough
+    similarity_scores = {
+        cluster_id: similarity
+        for cluster_id, similarity in similarity_scores.items()
+        if similarity <= distance_threshold
+    }
+    # assign the anchor to the cluster with the highest similarity score if there is one
+    # otherwise don't include the anchor in any cluster
+    if similarity_scores == {}:
+        return None
+    assigned_cluster = min(similarity_scores, key=lambda x: similarity_scores[x])
+    return assigned_cluster
+
+
+# define a helper function to print the progress
+def print_progress(results, total_anchors):
+    num_anchors_finished = len(results)
+    time_remaining = (total_anchors - num_anchors_finished) * 0.1
+    progress = f"Anchors finished: {num_anchors_finished}/{total_anchors}. Time remaining: {time_remaining:.2f} seconds."
+    print(progress, end="\r", flush=True)
 
 
 # assign new anchor sequences to clusters based on similarity metric
@@ -82,59 +137,41 @@ def assign_anchors_to_clusters(
     anchors,
     metric="lev",
     distance_threshold=9,
-):
-    # initialize dictionary to store the rankings of the new anchors for each cluster
-    rankings = {}
-    count = 0
-    print_count = 0
-    # loop through each anchor and calculate the similarity to each cluster
-    for anchor in anchors:
-        # initialize dictionary to store the similarity scores for each cluster
-        similarity_scores = {}
-        cluster_count = 0
-        # loop through each cluster and calculate the similarity score
-        for cluster_id, assigned_anchors in cluster_assignments.items():
-            # randomly select up to 5 anchors from the cluster to compare to
-            # assigned_anchors = np.random.choice(
-            #     assigned_anchors, min(5, len(assigned_anchors))
-            # )
-            assigned_anchors = assigned_anchors[0]
-            # calculate the similarity score based on the chosen metric
-            if metric == "lev":
-                similarity = min(
-                    [
-                        Levenshtein.distance(
-                            anchor, assigned_anchor, score_cutoff=distance_threshold + 1
-                        )
-                        for assigned_anchor in assigned_anchors
-                    ]
-                )
-            else:
-                raise ValueError("Invalid metric specified.")
-            # store the similarity score in the dictionary
-            similarity_scores[cluster_id] = similarity
-            cluster_count = cluster_count + 1
-        # remove any clusters that are not similar enough
-        similarity_scores = {
-            cluster_id: similarity
-            for cluster_id, similarity in similarity_scores.items()
-            if similarity <= distance_threshold
-        }
-        # assign the anchor to the cluster with the highest similarity score if there is one
-        # otherwise don't include the anchor in any cluster
-        if similarity_scores == {}:
-            continue
-        assigned_cluster = min(similarity_scores, key=lambda x: similarity_scores[x])
-        # add the anchor to the rankings dictionary
-        if assigned_cluster in rankings:
-            rankings[assigned_cluster].append(anchor)
-        else:
-            rankings[assigned_cluster] = [anchor]
-        # print progress
-        count = count + 1
-        if count % 1000 == 0:
-            print(f"Processed {count} anchors")
-            print(similarity_scores)
+):  # loop through each anchor and calculate the similarity to each cluster
+
+    # parallelize the loop using multiprocessing.Pool
+    process_anchor_partial = partial(
+        process_anchor,
+        cluster_assignments=cluster_assignments,
+        metric=metric,
+        distance_threshold=distance_threshold,
+    )
+
+    # detect the number of available CPUs
+    try:
+        num_cpus = multiprocessing.cpu_count()
+        print(f"Detected {num_cpus} CPUs.")
+    except Exception as e:
+        print(e)
+        print("Could not detect number of CPUs. Defaulting to 1 CPU.")
+        num_cpus = 1
+
+    # create a pool of workers to process the anchors
+    with Pool(num_cpus) as pool:
+        results = []
+        for i, result in enumerate(
+            pool.imap_unordered(process_anchor_partial, anchors)
+        ):
+            results.append(result)
+            print_progress(results, len(anchors))
+        print()  # print a new line after the progress bar
+
+    # create a dictionary to store the cluster assignments
+    rankings = {cluster_id: [] for cluster_id in cluster_assignments.keys()}
+    # loop through the results and assign the anchors to the clusters
+    for i, assigned_cluster in enumerate(results):
+        if assigned_cluster is not None:
+            rankings[assigned_cluster].append(anchors[i])
     return rankings
 
 
@@ -149,14 +186,17 @@ def write_cluster_assignments(output_file, rankings):
 # main function
 def main():
     args = parse_args()
+    print("Reading anchor sequences and cluster assignments...")
     cluster_assignments = read_anchors(args.input_file)
     new_anchors = read_new_anchors(args.new_anchors)
+    print("Assigning new anchor sequences to clusters...")
     rankings = assign_anchors_to_clusters(
         cluster_assignments,
         new_anchors,
         metric=args.metric,
         distance_threshold=args.distance_threshold,
     )
+    print("Writing cluster assignments to output file...")
     write_cluster_assignments(args.output_file, rankings)
 
 

@@ -118,6 +118,8 @@ def main():
     anchors = read_anchors(args.input_file)
     # create a seed dictionary from the most unique N anchors
     seed_dict = create_seed_dict(anchors, args.num_clusters, args.distance_threshold)
+    print(f"Created seed dictionary with {len(seed_dict)} seeds.")
+    print("Assigning anchors to seeds...")
     # assign each anchor to the seed that it is most similar to
     rankings = assign_anchors_to_seeds(anchors, seed_dict, args.distance_threshold - 1)
     # write the cluster assignments to the output file
