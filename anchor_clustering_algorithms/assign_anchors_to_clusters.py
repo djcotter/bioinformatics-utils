@@ -98,7 +98,7 @@ def assign_anchors_to_clusters(
             # assigned_anchors = np.random.choice(
             #     assigned_anchors, min(5, len(assigned_anchors))
             # )
-            assigned_anchors = assigned_anchors[0 : min(5, len(assigned_anchors))]
+            assigned_anchors = assigned_anchors[0]
             # calculate the similarity score based on the chosen metric
             if metric == "lev":
                 similarity = min(
@@ -114,9 +114,6 @@ def assign_anchors_to_clusters(
             # store the similarity score in the dictionary
             similarity_scores[cluster_id] = similarity
             cluster_count = cluster_count + 1
-            if cluster_count % 1000 == 0 & print_count < 1000:
-                print(f"\tProcessed {cluster_count} clusters")
-                print_count = print_count + 1
         # remove any clusters that are not similar enough
         similarity_scores = {
             cluster_id: similarity
@@ -137,6 +134,7 @@ def assign_anchors_to_clusters(
         count = count + 1
         if count % 1000 == 0:
             print(f"Processed {count} anchors")
+            print(similarity_scores)
     return rankings
 
 
