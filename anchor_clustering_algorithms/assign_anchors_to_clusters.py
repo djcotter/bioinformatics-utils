@@ -142,7 +142,6 @@ def main():
         new_anchors,
         metric=args.metric,
         distance_threshold=args.distance_threshold,
-        anchors_per_cluster=10,
     )
     write_cluster_assignments(args.output_file, rankings)
 
