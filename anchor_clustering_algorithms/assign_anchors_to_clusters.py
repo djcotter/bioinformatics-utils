@@ -37,6 +37,12 @@ def parse_args():
         default=10,
         help="Threshold for similarity metric.",
     )
+    parser.add_argument(
+        "--num_cpus",
+        type=int,
+        default=None,
+        help="Number of CPUs to use for parallel processing.",
+    )
     # add positional argument for input file
     parser.add_argument(
         "input_file",
@@ -137,6 +143,7 @@ def assign_anchors_to_clusters(
     anchors,
     metric="lev",
     distance_threshold=9,
+    num_cpus=None,
 ):  # loop through each anchor and calculate the similarity to each cluster
 
     # parallelize the loop using multiprocessing.Pool
@@ -148,19 +155,22 @@ def assign_anchors_to_clusters(
     )
 
     # detect the number of available CPUs
-    try:
-        num_cpus = multiprocessing.cpu_count()
-        print(f"Detected {num_cpus} CPUs.")
-    except Exception as e:
-        print(e)
-        print("Could not detect number of CPUs. Defaulting to 1 CPU.")
-        num_cpus = 1
+    if num_cpus is not None:
+        print(f"Using {num_cpus} CPUs.")
+    else:
+        try:
+            num_cpus = multiprocessing.cpu_count()
+            print(f"Detected {num_cpus} CPUs.")
+        except Exception as e:
+            print(e)
+            print("Could not detect number of CPUs. Defaulting to 1 CPU.")
+            num_cpus = 1
 
     # create a pool of workers to process the anchors
     with Pool(num_cpus) as pool:
         results = []
         for i, result in enumerate(
-            pool.imap_unordered(process_anchor_partial, anchors)
+            pool.imap_unordered(process_anchor_partial, anchors, chunksize=500)
         ):
             results.append(result)
             print_progress(results, len(anchors))
@@ -195,6 +205,7 @@ def main():
         new_anchors,
         metric=args.metric,
         distance_threshold=args.distance_threshold,
+        num_cpus=args.num_cpus,
     )
     print("Writing cluster assignments to output file...")
     write_cluster_assignments(args.output_file, rankings)
