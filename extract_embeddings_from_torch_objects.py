@@ -31,7 +31,7 @@ def parse_args():
 # Extract embeddings from PyTorch object
 def extract_embeddings(pt_file):
     embeddings = torch.load(pt_file)
-    embeddings = embeddings["mean_embeddings"][33]
+    embeddings = embeddings["mean_representations"][33]
     return embeddings
 
 
