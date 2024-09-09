@@ -49,3 +49,7 @@ def main():
     with open(output_file, "w") as f:
         for key, value in embeddings.items():
             f.write(key + "\t" + "\t".join([str(x) for x in value]) + "\n")
+
+
+if __name__ == "__main__":
+    main()
