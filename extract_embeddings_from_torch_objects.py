@@ -2,8 +2,7 @@
 extract_embeddings_from_torch_objects.py
 
 Simple utility to loop through all .pt files in a directory and extract the embeddings from each file. The embeddings are
-then all saved to a singly tsv file with the same name as the directory. The embeddings are saved in the order that they
-are read from the .pt files.
+then all saved to a singly tsv file. The embeddings are saved in the order that they are read from the .pt files.
 
 Daniel Cotter
 09/09/2024
@@ -24,6 +23,11 @@ def parse_args():
         "input_dir",
         type=str,
         help="Directory containing PyTorch objects (.pt files) with embeddings.",
+    )
+    parser.add_argument(
+        "output_file",
+        type=str,
+        help="Output file to save embeddings to in tsv format.",
     )
     return parser.parse_args()
 
