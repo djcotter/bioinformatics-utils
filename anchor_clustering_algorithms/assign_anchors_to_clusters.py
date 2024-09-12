@@ -16,6 +16,7 @@ import argparse
 from functools import partial
 import multiprocessing
 from multiprocessing import Pool
+import time
 
 
 # parse arguments
@@ -130,10 +131,10 @@ def process_anchor(
 
 
 # define a helper function to print the progress
-def print_progress(results, total_anchors):
+def print_progress(results, total_anchors, start_time):
     num_anchors_finished = len(results)
-    time_remaining = (total_anchors - num_anchors_finished) * 0.1
-    progress = f"Anchors finished: {num_anchors_finished}/{total_anchors}. Time remaining: {time_remaining:.2f} seconds."
+    time_passed = time.time() - start_time
+    progress = f"Anchors finished: {num_anchors_finished}/{total_anchors}. Time passed: {time_passed:.2f} seconds."
     print(progress, end="\r", flush=True)
 
 
@@ -168,12 +169,13 @@ def assign_anchors_to_clusters(
 
     # create a pool of workers to process the anchors
     with Pool(num_cpus) as pool:
+        start_time = time.time()
         results = []
         for i, result in enumerate(
-            pool.imap_unordered(process_anchor_partial, anchors, chunksize=500)
+            pool.imap_unordered(process_anchor_partial, anchors, chunksize=5000)
         ):
             results.append(result)
-            print_progress(results, len(anchors))
+            print_progress(results, len(anchors), start_time)
         print()  # print a new line after the progress bar
 
     # create a dictionary to store the cluster assignments
@@ -190,7 +192,7 @@ def write_cluster_assignments(output_file, rankings):
     with open(output_file, "w") as f:
         for cluster_id, assigned_anchors in rankings.items():
             for anchor in assigned_anchors:
-                f.write(f"{cluster_id}\t{anchor}")
+                f.write(f"{cluster_id}\t{anchor}\n")
 
 
 # main function
