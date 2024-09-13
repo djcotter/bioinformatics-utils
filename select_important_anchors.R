@@ -18,11 +18,11 @@ suppressPackageStartupMessages(library(Biostrings))
 # define command line arguments
 option_list <- list(
   make_option(c("-i", "--input"), "Input file", type="character"),
-  make_option(c("-o", "--output"), "Output file", type="character"),
+  make_option(c("-o", "--output_prefix"), "Output prefix.", type="character"),
   make_option(c("-n", "--num_anchors"), "Number of anchors to select",
-              type="integer", default = 500000),
+              type="integer", default = 250000),
   make_option(c("--num_clusters"), "Number of clusters to create",
-              type="integer", default = 1000),
+              type="integer", default = 4000),
   make_option(c("-e", "--effect_size"), "Effect size threshold",
               type="numeric", default=0.7),
   make_option(c("-l", "--lookup_table"), "Lookup table file", type="character"),
@@ -34,7 +34,7 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 # check that input file exists
-if (!file.exists(opt$input) | is.null(opt$output)) {
+if (!file.exists(opt$input) | is.null(opt$output_prefix)) {
   stop("Must provide input and output files")
 }
 if (!file.exists(opt$lookup_table)) {
@@ -42,9 +42,9 @@ if (!file.exists(opt$lookup_table)) {
 }
 
 # create a temporary directory to store intermediate files
-temp_dir <- file.path(dirname(opt$output), "tmp/")
+temp_dir <- file.path(dirname(opt$output_prefix), "tmp/")
 cat(paste("Creating temp directory:", temp_dir))
-cat("\n")
+cat("\n\n")
 system(paste("mkdir -p", temp_dir))
 
 ## load the data
@@ -60,7 +60,7 @@ if (grepl(".gz$", opt$input)) {
 
 # only select the first 18 columns
 cat(paste("Reading in anchors from", opt$input, "with effect size >=", opt$effect_size))
-cat("\n")
+cat("\n\n")
 dt <- fread(cmd=load_cmd, header=TRUE, select = 1:18)
 
 ## run lookup table to filter out artifacts -----------
@@ -82,11 +82,11 @@ lookup_cmd <- paste0(file.path(opt$splash_bin, "lookup_table"),
                      anchors_fasta_file, " ", opt$lookup_table, " ", out_lookup_stats)
 if (file.exists(out_lookup_stats)) {
   cat("Lookup stats already in tmp directory. Delete tmp directory to force lookup table to run again...\n")
-  cat("\nFiltering anchors for artifacts...")
+  cat("Filtering anchors for artifacts...\n")
 } else {
   cat("Running lookup table...\n")
   system(lookup_cmd)
-  cat("\nFinished Querying lookup table. Filtering anchors for artifacts...")
+  cat("Finished Querying lookup table. Filtering anchors for artifacts...\n\n")
 }
 
 # read in the lookup table stats
@@ -97,27 +97,45 @@ lookup_stats <- lookup_stats %>% mutate(anchor = anchors_to_keep$anchor)
 artifact_pattern <- "plas|illum|syn|arp|RF|JUNK|Ral|purge|P,|Univec"
 anchors_to_keep <- lookup_stats %>% filter(!grepl(artifact_pattern, query, ignore.case=T)) %>% select(anchor)
 
+cat(paste0("Finished filtering. Kept ", nrow(anchors_to_keep), " anchors out of ", nrow(lookup_stats), " total anchors.\n"))
+cat(paste0("Keeping the top ", opt$num_anchors, " by number_nonzero_samples for further analysis...\n\n"))
+
 ## select the most important anchors -----------
 anchors_to_keep <- anchors_to_keep %>% 
   left_join(dt %>% select(anchor, number_nonzero_samples), by="anchor") %>%
   arrange(desc(number_nonzero_samples)) %>%
   head(opt$num_anchors)
 
-## cluster the anchors by sequence similarity -----------
-cat("Clustering anchors by sequence similarity...\n")
-dist_matrix <- anchors_to_keep$anchor %>% DNAStringSet() %>% stringDist(method="levenshtein") %>% as.matrix()
+# cluster the anchors using kmer distances
+cat(paste("Clustering anchors into", opt$num_clusters, "clusters by kmer similarity...\n"))
+suppressPackageStartupMessages(library(ape))
+suppressPackageStartupMessages(library(kmer))
+suppressPackageStartupMessages(library(dendextend))
 
-# use spectral clustering to cluster the anchors
-cat(paste("Creating", opt$num_clusters, "clusters of anchors.\n"))
-suppressPackageStartupMessages(library(spectralClustering))
-clust <- spectralClustering(dist_matrix, k=opt$num_clusters, method="discretize")
+dna <- anchors_to_keep$anchor %>% DNAStringSet(.)
+names(dna) <- anchors_to_keep$anchor
+dna <- as.DNAbin(dna)
+dna.tree <- kmer::cluster(dna)
+anchor_clusters <- dendextend::cutree(dna.tree, 
+                                      k=opt$num_clusters) %>% 
+  enframe() %>% 
+  dplyr::rename(anchor=name, cluster_id=value)
+cat("Finished clustering anchors.\n\n")
 
-# add the cluster assignments to the anchors
-anchors_to_keep <- anchors_to_keep %>% mutate(cluster=clust)
-cat("Finished clustering anchors.\n")
-
+## format anchor clusters ----------
+cat("Arranging clusters by effect size...\n")
+anchor_clusters <- anchor_clusters %>% left_join(dt, by="anchor") %>% 
+  arrange(cluster_id, desc(effect_size_bin)) %>% select(cluster_id, anchor)
+anchors_only <- anchor_clusters %>% select(anchor)
 
 ## write the output -----------
-cat(paste("Writing", nrow(anchors_to_keep), "anchors to", opt$output))
+anchors_only_out = paste0(opt$output_prefix, "_anchor_list.txt")
+anchor_clusters_out = paste0(opt$output_prefix, "_anchor_clusters.tsv")
+cat(paste("Writing", nrow(anchors_to_keep), "anchors to", anchors_only_out))
 cat("\n")
-anchors_to_keep %>% write.table(opt$output, row.names=FALSE, col.names=FALSE, quote=FALSE)
+anchors_only %>% write.table(anchors_only_out, row.names=FALSE, col.names=FALSE, quote=FALSE)
+
+cat(paste("Writing", opt$num_clusters, "clusters and their anchors to", anchor_clusters_out))
+cat("\n")
+anchor_clusters %>% write.table(anchor_clusters_out, row.names=FALSE, col.names=FALSE, quote=FALSE)
+
