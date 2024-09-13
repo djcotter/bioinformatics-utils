@@ -20,7 +20,9 @@ option_list <- list(
   make_option(c("-i", "--input"), "Input file", type="character"),
   make_option(c("-o", "--output"), "Output file", type="character"),
   make_option(c("-n", "--num_anchors"), "Number of anchors to select",
-              type="integer", default = 100000),
+              type="integer", default = 500000),
+  make_option(c("--num_clusters"), "Number of clusters to create",
+              type="integer", default = 1000),
   make_option(c("-e", "--effect_size"), "Effect size threshold",
               type="numeric", default=0.7),
   make_option(c("-l", "--lookup_table"), "Lookup table file", type="character"),
@@ -96,5 +98,26 @@ artifact_pattern <- "plas|illum|syn|arp|RF|JUNK|Ral|purge|P,|Univec"
 anchors_to_keep <- lookup_stats %>% filter(!grepl(artifact_pattern, query, ignore.case=T)) %>% select(anchor)
 
 ## select the most important anchors -----------
-anchors_to_keep <- anchors_to_keep %>% left_join(dt %>% select(anchor, number_nonzero_samples),by="anchor")
+anchors_to_keep <- anchors_to_keep %>% 
+  left_join(dt %>% select(anchor, number_nonzero_samples), by="anchor") %>%
+  arrange(desc(number_nonzero_samples)) %>%
+  head(opt$num_anchors)
 
+## cluster the anchors by sequence similarity -----------
+cat("Clustering anchors by sequence similarity...\n")
+dist_matrix <- anchors_to_keep$anchor %>% DNAStringSet() %>% stringDist(method="levenshtein") %>% as.matrix()
+
+# use spectral clustering to cluster the anchors
+cat(paste("Creating", opt$num_clusters, "clusters of anchors.\n"))
+suppressPackageStartupMessages(library(spectralClustering))
+clust <- spectralClustering(dist_matrix, k=opt$num_clusters, method="discretize")
+
+# add the cluster assignments to the anchors
+anchors_to_keep <- anchors_to_keep %>% mutate(cluster=clust)
+cat("Finished clustering anchors.\n")
+
+
+## write the output -----------
+cat(paste("Writing", nrow(anchors_to_keep), "anchors to", opt$output))
+cat("\n")
+anchors_to_keep %>% write.table(opt$output, row.names=FALSE, col.names=FALSE, quote=FALSE)
