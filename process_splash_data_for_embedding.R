@@ -35,7 +35,7 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 # set up parallel processing
-plan(multiprocess, workers = opt$num_cores)
+plan(multicore, workers = opt$num_cores)
 
 # check that user specified all files 
 if (!file.exists(opt$anchor_file) | !file.exists(opt$cluster_file) | is.null(opt$satc_files) | is.null(opt$output_prefix) | !file.exists(opt$id_mapping)) {
@@ -54,7 +54,7 @@ if (!is.null(opt$temp_dir)) {
 }
 
 # read in the anchor cluster file
-cluster_df <- fread(opt$cluster_file, 
+anchor_clusters <- fread(opt$cluster_file, 
                     header = F, col.names = c("cluster_id", "anchor")) %>%
   group_by(cluster_id) %>%
   mutate(rank = row_number()) %>%
