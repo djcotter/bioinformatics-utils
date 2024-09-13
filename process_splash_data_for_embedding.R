@@ -35,7 +35,7 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 # set up parallel processing
-plan(multisession, workers = opt$num_cores)
+plan(multiprocess, workers = opt$num_cores)
 
 # check that user specified all files 
 if (!file.exists(opt$anchor_file) | !file.exists(opt$cluster_file) | is.null(opt$satc_files) | is.null(opt$output_prefix) | !file.exists(opt$id_mapping)) {
@@ -64,7 +64,8 @@ cluster_df <- fread(opt$cluster_file,
 satc_files <- list.files(opt$satc_files, pattern = ".satc", full.names = T)
 satc_files <- data.frame(satc_file=satc_files) %>% 
   mutate(satc_dump = gsub(".satc", ".satc.dump", 
-                          file.path(opt$temp_dir, basename(satc_file))))
+                          file.path(opt$temp_dir, 'dumped', basename(satc_file))))
+system(paste("mkdir -p", file.path(opt$temp_dir, "dumped")))
 
 # dump the satc files
 future_walk2(satc_files$satc_file, satc_files$satc_dump, \(x,y) system(
