@@ -115,7 +115,7 @@ satc_dt <- fread(all_satc_filtered_dump, header=F,
 
 # grab the top anchor per cluster as a representative anchor
 representative_anchors <- anchor_clusters %>% group_by(cluster_id) %>% 
-  distinct(anchor) %>% ungroup() %>% pull(anchor)
+  distinct(cluster_id, .keep_all=T) %>% ungroup() %>% pull(anchor)
 
 # read in the satc and pivot it wider 
 wide_satc <- merge(satc_dt, anchor_clusters, by="anchor", all.x=TRUE)
