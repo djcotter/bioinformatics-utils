@@ -20,9 +20,9 @@ option_list <- list(
   make_option(c("-i", "--input"), "Input file", type="character"),
   make_option(c("-o", "--output_prefix"), "Output prefix.", type="character"),
   make_option(c("-n", "--num_anchors"), "Number of anchors to select",
-              type="integer", default = 250000),
+              type="integer", default = 150000),
   make_option(c("--num_clusters"), "Number of clusters to create",
-              type="integer", default = 4000),
+              type="integer", default = 3000),
   make_option(c("-e", "--effect_size"), "Effect size threshold",
               type="numeric", default=0.7),
   make_option(c("-l", "--lookup_table"), "Lookup table file", type="character"),
@@ -41,11 +41,37 @@ if (!file.exists(opt$lookup_table)) {
   stop("Must provide path to lookup table")
 }
 
+# define output files 
+anchors_only_out = paste0(opt$output_prefix, "_anchor_list.txt")
+anchor_clusters_out = paste0(opt$output_prefix, "_anchor_clusters.tsv")
+
 # create a temporary directory to store intermediate files
 temp_dir <- file.path(dirname(opt$output_prefix), "tmp/")
-cat(paste("Creating temp directory:", temp_dir))
-cat("\n\n")
 system(paste("mkdir -p", temp_dir))
+
+# cat to screen the input files, output files, temp dir and paramaters
+cat("\n###################################################################\n")
+cat("Running select_important_anchors.R with the following parameters:\n")
+cat(paste("Input file:", opt$input))
+cat("\n")
+cat(paste("Output anchors:", anchors_only_out))
+cat("\n")
+cat(paste("Output anchor clusters:", anchor_clusters_out))
+cat("\n")
+cat(paste("Number of anchors to select:", opt$num_anchors))
+cat("\n")
+cat(paste("Number of clusters to create:", opt$num_clusters))
+cat("\n")
+cat(paste("Effect size threshold:", opt$effect_size))
+cat("\n")
+cat(paste("Lookup table file:", opt$lookup_table))
+cat("\n")
+cat(paste("SPLASH binary folder:", opt$splash_bin))
+cat("\n")
+cat(paste("Temporary directory:", temp_dir))
+cat("\n")
+cat("###################################################################\n\n")
+
 
 ## load the data
 # read in the headers of the input file to identify the effect_size_bin column
@@ -108,6 +134,8 @@ anchors_to_keep <- anchors_to_keep %>%
 
 # cluster the anchors using kmer distances
 cat(paste("Clustering anchors into", opt$num_clusters, "clusters by kmer similarity...\n"))
+# time
+start_time <- Sys.time()
 suppressPackageStartupMessages(library(ape))
 suppressPackageStartupMessages(library(kmer))
 suppressPackageStartupMessages(library(dendextend))
@@ -120,7 +148,7 @@ anchor_clusters <- dendextend::cutree(dna.tree,
                                       k=opt$num_clusters) %>% 
   enframe() %>% 
   dplyr::rename(anchor=name, cluster_id=value)
-cat("Finished clustering anchors.\n\n")
+cat(paste("Finished clustering anchors in", round(Sys.time() - start_time, 2), "seconds.\n\n"))
 
 ## format anchor clusters ----------
 cat("Arranging clusters by effect size...\n")
@@ -129,8 +157,6 @@ anchor_clusters <- anchor_clusters %>% left_join(dt, by="anchor") %>%
 anchors_only <- anchor_clusters %>% select(anchor)
 
 ## write the output -----------
-anchors_only_out = paste0(opt$output_prefix, "_anchor_list.txt")
-anchor_clusters_out = paste0(opt$output_prefix, "_anchor_clusters.tsv")
 cat(paste("Writing", nrow(anchors_to_keep), "anchors to", anchors_only_out))
 cat("\n")
 anchors_only %>% write.table(anchors_only_out, row.names=FALSE, col.names=FALSE, quote=FALSE)
