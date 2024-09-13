@@ -67,37 +67,47 @@ satc_files <- data.frame(satc_file=satc_files) %>%
                           file.path(opt$temp_dir, 'dumped', basename(satc_file))))
 system(paste("mkdir -p", file.path(opt$temp_dir, "dumped")))
 
-# dump the satc files
-future_walk2(satc_files$satc_file, satc_files$satc_dump, \(x,y) system(
-  paste0(file.path(opt$satc_util_bin, "satc_dump"), " --anchor_list ", opt$anchor_file,
-         " --sample_names ", opt$id_mapping, " ", x, " ", y)))
-
-# merge them into one file
+# declare a satc file for the output of all the dump files
 all_satc_file <- file.path(opt$temp_dir, "all_satc_merged.txt")
-walk(satc_files$satc_dump, \(x) system(paste("cat", x, ">>", all_satc_file)))
 
-# remove any lines that start or end in [ACTG]
-system(paste("grep -v '^[ACTG]' ", all_satc_file, " | grep -v '[ACTG]$' > ", 
-             file.path(opt$temp_dir, "all_satc_merged_no_anchor.txt")))
-system(paste("mv", file.path(opt$temp_dir, "all_satc_merged_no_anchor.txt"), all_satc_file))
+if (!file.exists(all_satc_file)) {
+  # dump the satc files
+  future_walk2(satc_files$satc_file, satc_files$satc_dump, \(x,y) system(
+    paste0(file.path(opt$satc_util_bin, "satc_dump"), " --anchor_list ", opt$anchor_file,
+           " --sample_names ", opt$id_mapping, " ", x, " ", y)))
+  
+  # merge them into one file
+  walk(satc_files$satc_dump, \(x) system(paste("cat", x, ">>", all_satc_file)))
+
+  # remove any lines that start or end in [ACTG]
+  system(paste("grep -v '^[ACTG]' ", all_satc_file, " | grep -v '[ACTG]$' > ", 
+               file.path(opt$temp_dir, "all_satc_merged_no_anchor.txt")))
+  system(paste("mv", file.path(opt$temp_dir, "all_satc_merged_no_anchor.txt"), all_satc_file))
+}
 
 # undump the satc files
 all_satc_undumped <- file.path(opt$temp_dir, "all_satc_merged.undumped.txt")
 all_satc_temp_mapping <- file.path(opt$temp_dir, "all_satc_merged.temp_mapping.txt")
-system(paste(file.path(opt$satc_util_bin, "satc_undump"), "-i", all_satc_file, 
-             "-o", all_satc_undumped, "-m", all_satc_temp_mapping))
+if (!file.exists(all_satc_undumped) | !file.exists(all_satc_temp_mapping)) {
+  system(paste(file.path(opt$satc_util_bin, "satc_undump"), "-i", all_satc_file, 
+               "-o", all_satc_undumped, "-m", all_satc_temp_mapping))
+}
 
 # filter the satc files 
 all_satc_filtered <- file.path(opt$temp_dir, "all_satc.filtered.txt")
-system(paste(file.path(opt$satc_util_bin, "satc_filter"), 
-             "-i", all_satc_undumped, "-o", all_satc_filtered,
-             "-d", opt$anchor_file, "-n", 1))
+if (!file.exists(all_satc_filtered)) {
+  system(paste(file.path(opt$satc_util_bin, "satc_filter"), 
+               "-i", all_satc_undumped, "-o", all_satc_filtered,
+               "-d", opt$anchor_file, "-n", 1))
+}
 
 # redump the satc file 
-all_satc_filtered_dumped <- file.path(opt$temp_dir, "all_satc.filtered.dump")
-system(paste(file.path(opt$satc_util_bin, "satc_dump"),
-             "--sample_names", opt$id_mapping,
-             all_satc_filtered, all_satc_filtered_dumped))
+all_satc_filtered_dump <- file.path(opt$temp_dir, "all_satc.filtered.dump")
+if (!file.exists(all_satc_filtered_dump)) {
+  system(paste(file.path(opt$satc_util_bin, "satc_dump"),
+               "--sample_names", opt$id_mapping,
+               all_satc_filtered, all_satc_filtered_dump))
+}
 
 # read in the dumped satc file
 satc_dt <- fread(all_satc_filtered_dump, header=F,
