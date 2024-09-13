@@ -27,7 +27,9 @@ option_list <- list(
               type="numeric", default=0.7),
   make_option(c("-l", "--lookup_table"), "Lookup table file", type="character"),
   make_option(c("--splash_bin"), "Path to SPLASH binary folder",
-              type="character", default="/oak/stanford/groups/horence/dcotter1/splash-2.6.1/")
+              type="character", default="/oak/stanford/groups/horence/dcotter1/splash-2.6.1/"),
+  make_option(c("--temp_dir"), "Temporary directory to store intermediate files", 
+              type="character")
 )
 
 # parse command line arguments
@@ -46,8 +48,15 @@ anchors_only_out = paste0(opt$output_prefix, "_anchor_list.txt")
 anchor_clusters_out = paste0(opt$output_prefix, "_anchor_clusters.tsv")
 
 # create a temporary directory to store intermediate files
-temp_dir <- file.path(dirname(opt$output_prefix), "tmp/")
-system(paste("mkdir -p", temp_dir))
+if (!is.null(opt$temp_dir)) {
+  temp_dir <- ifelse(grepl("/$", opt$temp_dir),
+                     opt$temp_dir, 
+                     paste0(opt$temp_dir, "/"))
+  system(paste("mkdir -p", temp_dir))
+} else {
+  temp_dir <- file.path(dirname(opt$output_prefix), "tmp/")
+  system(paste("mkdir -p", temp_dir))
+}
 
 # cat to screen the input files, output files, temp dir and paramaters
 cat("\n###################################################################\n")
