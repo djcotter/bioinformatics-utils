@@ -138,10 +138,10 @@ wide_satc <- wide_satc %>% ungroup()
 
 # join the columns together into one sequence and write to a tsv
 seqs <- wide_satc %>% unite(seq, -sample, sep="")
-seqs %>% write_tsv(file.path(opt$output_prefix, "_sample_sequences.tsv"))
+seqs %>% write_tsv(paste0(opt$output_prefix, "_sample_sequences.tsv"))
 
 # write the data to a fasta file
 dna <- Biostrings::DNAStringSet(seqs$seq)
 names(dna) <- seqs$sample
-writeXStringSet(dna, file.path(opt$output_prefix, "_sample_sequences.fasta"))
+writeXStringSet(dna, paste0(opt$output_prefix, "_sample_sequences.fasta"))
 
