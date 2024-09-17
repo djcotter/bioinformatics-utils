@@ -21,15 +21,15 @@ suppressPackageStartupMessages(library(optparse))
 ## parse arguments --------
 # define command line arguments
 option_list <- list(
-  make_option(c("-m", "--metadata"), "Metadata file", type="character"),
-  make_option(c("-e", "--embeddings"), "Embeddings file", type="character"),
-  make_option(c("-o", "--ordering"), "Ordering file", type="character"),
-  make_option(c("-n", "--num_pcs"), "Number of PCs to use", type="integer", default = 0),
-  make_option(c("-p", "--output_prefix"), "Output prefix.", type="character"),
-  make_option(c("-s", "--min_samples_per_category"), "Minimum number of samples per metadata category", 
+  make_option(c("-m", "--metadata"), help="Metadata file", type="character"),
+  make_option(c("-e", "--embeddings"), help="Embeddings file", type="character"),
+  make_option(c("-o", "--ordering"), help="Ordering file", type="character"),
+  make_option(c("-n", "--num_pcs"), help="Number of PCs to use", type="integer", default = 10),
+  make_option(c("-p", "--output_prefix"), help="Output prefix.", type="character"),
+  make_option(c("-s", "--min_samples_per_category"), help="Minimum number of samples per metadata category", 
               type="integer", default = 30),
-  make_option(c("--even_classes"), "Sample equal numbers of each class", action="store_true", default = FALSE),
-  make_option(c("--temp_dir"), "Temporary directory to store intermediate files", 
+  make_option(c("--even_classes"), help="Sample equal numbers of each class", action="store_true", default=FALSE),
+  make_option(c("--temp_dir"), help="Temporary directory to store intermediate files", 
               type="character")
 )
 
@@ -58,7 +58,7 @@ coefficients_out = paste0(opt$output_prefix, "_nonzero_coefficients.tsv")
 confusion_matrix_out = paste0(opt$output_prefix, "_confusion_matrices.pdf")
 min_num_per_category = opt$min_samples_per_category
 
-## print a summart of the arguments
+## print a summary of the arguments
 cat("\n####################\n")
 cat("Running glmnet_on_embeddings_PCs.R with the following arguments:\n")
 cat("Metadata file: ", opt$metadata, "\n")
@@ -92,35 +92,46 @@ for (i in colnames(my_metadata %>% select(-sample_name))) {
   }
 }
 # print the metadata labels that are being used
-cat("Using the following metadata labels: ", paste(metadata_labels, collapse = "\n\t"), "\n")
+cat("Using the following metadata labels:\n\t", paste(metadata_labels, collapse = "\n \t"), "\n")
 
 # load embeddings
-cat("Loading embeddings...\n")
+cat("\nLoading embeddings...\n")
 # copy the embeddings file to the temp directory to speed up I/O
 embeddings_temp <- file.path(temp_dir, "embeddings_temp.tsv")
 if (!file.exists(embeddings_temp)) {
   system(paste("cp", opt$embeddings, embeddings_temp))
 }
 embeddings <- fread(embeddings_temp, header = F)
-colnames(embeddings) <- c("kmer", paste0("embedding_", 1:ncol(embeddings)-1))
+colnames(embeddings) <- c("kmer", paste0("embedding_", 1:(ncol(embeddings)-1)))
 
 # calculate PCA on the embeddings matrix
 cat("Calculating PCA on the embeddings matrix...\n")
-time_pca <- Sys.time()
-embeddings_mat <- embeddings %>% column_to_rownames("kmer") %>% as.matrix()
-embeddings_pca <- prcomp(t(embeddings_mat), center = T, scale. = T)
+temp_PCA_file = file.path(temp_dir, "temp_PCA.rds")
+if (!file.exists(temp_PCA_file)) {
+  time_pca <- Sys.time()
+  embeddings_mat <- embeddings %>% column_to_rownames("kmer") %>% as.matrix()
+  embeddings_pca <- prcomp(t(embeddings_mat), center = T, scale. = T)
+  cat("PCA completed in ", round(Sys.time() - time_pca, 2), " seconds.\n")
+  saveRDS(embeddings_pca, temp_PCA_file)
+  rm(embeddings_mat)
+} else {
+  embeddings_pca <- readRDS(temp_PCA_file)
+  cat(paste("PCA already found at:", temp_PCA_file))
+  cat("Loading PCA and proceeding...")
+}
+
 embeddings_pcs <- embeddings_pca$rotation %>% as_tibble() %>% 
-  mutate(kmer = rownames(embeddings_pcs$rotation)) %>% 
+  mutate(kmer = rownames(embeddings_pca$rotation)) %>% 
   select(kmer, `PC1`:paste0("PC", opt$num_pcs))
 
 # calculate the importance of each PC
-importance <- summary(embeddings_pcs)$importance %>% 
-  t() %>% head(opt$num_pcs) %>%
-  as.data.frame() %>% rownames_to_column("PC") %>% as_tibble()
+importance <- summary(embeddings_pca)$importance %>% 
+  t() %>% as.data.frame() %>% 
+  head(opt$num_pcs) %>% rownames_to_column("PC") %>% as_tibble()
 
-cat("PCA completed in ", round(Sys.time() - time_pca, 2), " seconds.\n")
+
 cat("The importance of each PC:\n")
-print(kable(importance))
+print(knitr::kable(importance))
 cat("\n\n")
 
 # load the ordering file
@@ -142,10 +153,13 @@ main_dt <- ordering %>% left_join(embeddings_pcs, by="kmer") %>%
   mutate(position=position-1) %>% ungroup()
 
 position_to_kmer_mapping <- main_dt %>% select(position, kmer) %>% distinct()
+position_to_kmer_mapping <- position_to_kmer_mapping %>% 
+  arrange(position) %>% group_by(position) %>% 
+  summarise(kmers = str_c(kmer, collapse=",")) %>% ungroup()
 
 main_dt <- main_dt %>% select(sample_name, position, `PC1`:paste0("PC", opt$num_pcs))
 
-rm(ordering, embeddings_pcs, embeddings, embeddings_mat)
+rm(ordering, embeddings_pcs, embeddings)
 gc()
 
 ## Fit all glmnet models --------
@@ -205,7 +219,7 @@ for (i in metadata_labels) {
   # such that the number of samples is approximately equal for each class
   n_samples <- min(dt[, .N, by=class]$N)
   n_train <- floor(n_samples * 0.5)
-  print(paste("Training on", n_train, "samples per category."))
+  cat(paste("Training on", n_train, "samples per category.\n"))
   
   # separate into training and testing
   # keep equal numbers of each class in training and testing
@@ -290,16 +304,24 @@ for (i in metadata_labels) {
   
   # add accuracy and all counts to plot
   p <- p + geom_text(aes(label=count), vjust=1, size=3) +
-    ggtitle(paste0(antibiotic, " | Accuracy: ", round(acc, 2),
+    ggtitle(paste0(metadata_label, " | Accuracy: ", round(acc, 2),
                    "\nSensitivity: ", round(sens, 2),
                    " | Specificity: ", round(spec, 2)))
   print(p)
   all_coef = rbind(all_coef, coef_df)
+  cat("\n\n")
 }
 
 dev.off()
 
+saveRDS(all_coef, file.path(temp_dir, "all_glmnet_coef.RDS"))
 # write out the coefficients
 # first filter for non-zero coefficients
-nonzero_coef <- all_coef %>% filter(!grepl("0,", coefficients))
-write_tsv(nonzero_coef, coefficients_out, col_names = T, quote = F)
+# then join on the headers for the significant kmers
+nonzero_coef <- all_coef %>% filter(!grepl("0,", coefficients)) %>% 
+  mutate(position = str_extract(feature, "position_(\\d+)_", group=1)) %>% 
+  mutate(position=as.double(position)) %>% 
+  left_join(position_to_kmer_mapping, by="position") %>% 
+  select(-position)
+
+nonzero_coef %>% write_tsv(file=coefficients_out, col_names = T, quote = "needed", na = "")
