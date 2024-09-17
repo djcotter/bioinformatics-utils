@@ -267,11 +267,11 @@ for (i in metadata_labels) {
   cat(paste("accuracy:", acc))
   cat("\n")
   
-  # get the sensitivity
-  sens <- caret::sensitivity(confusion_matrix)
+  # get the sensitivity (use a trycatch and return NA if there's an error)
+  sens <- tryCatch(caret::sensitivity(confusion_matrix), error=function(e) NA)
   
-  # get the specificity
-  spec <- caret::specificity(confusion_matrix) 
+  # get the specificity (use a trycatch and return NA if there's an error)
+  spec <- tryCatch(caret::specificity(confusion_matrix), error=function(e) NA)
   
   # extract non-zero coefficients
   coef <- coef(fit, s="lambda.min")
