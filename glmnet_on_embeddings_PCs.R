@@ -30,7 +30,10 @@ option_list <- list(
               type="integer", default = 30),
   make_option(c("--even_classes"), help="Sample equal numbers of each class", action="store_true", default=FALSE),
   make_option(c("--temp_dir"), help="Temporary directory to store intermediate files", 
-              type="character")
+              type="character"),
+  make_option(c("--dont_scale_PCA"), help="Don't scale and center before running PCA", action="store_true", default=FALSE),
+  make_option(c("--drop_first_PC"), help="Drop first PC (it has been representing a large amount of the loadings)", 
+              action="store_true", default=FALSE)
 )
 
 
@@ -106,23 +109,40 @@ colnames(embeddings) <- c("kmer", paste0("embedding_", 1:(ncol(embeddings)-1)))
 
 # calculate PCA on the embeddings matrix
 cat("Calculating PCA on the embeddings matrix...\n")
-temp_PCA_file = file.path(temp_dir, "temp_PCA.rds")
+if (opt$dont_scale_PCA) {
+  temp_PCA_file = file.path(temp_dir, "temp_PCA_unscaled.rds")
+} else {
+  temp_PCA_file = file.path(temp_dir, "temp_PCA.rds")
+}
+
 if (!file.exists(temp_PCA_file)) {
   time_pca <- Sys.time()
   embeddings_mat <- embeddings %>% column_to_rownames("kmer") %>% as.matrix()
-  embeddings_pca <- prcomp(t(embeddings_mat), center = T, scale. = T)
+  if (opt$dont_scale_PCA) {
+    cat("Performing PCA on raw embeddings...\n")
+    embeddings_pca <- prcomp(t(embeddings_mat))
+  } else {
+    cat("Scaling and centering embeddings before performing PCA...\n")
+    embeddings_pca <- prcomp(t(embeddings_mat), center = T, scale. = T)
+  }
   cat("PCA completed in ", round(Sys.time() - time_pca, 2), " seconds.\n")
   saveRDS(embeddings_pca, temp_PCA_file)
   rm(embeddings_mat)
 } else {
   embeddings_pca <- readRDS(temp_PCA_file)
   cat(paste("PCA already found at:", temp_PCA_file))
-  cat("Loading PCA and proceeding...")
+  cat("\nLoading PCA and proceeding...\n")
 }
 
-embeddings_pcs <- embeddings_pca$rotation %>% as_tibble() %>% 
-  mutate(kmer = rownames(embeddings_pca$rotation)) %>% 
-  select(kmer, `PC1`:paste0("PC", opt$num_pcs))
+if (opt$drop_first_PC) {
+  embeddings_pcs <- embeddings_pca$rotation %>% as_tibble() %>% 
+    mutate(kmer = rownames(embeddings_pca$rotation)) %>% 
+    select(kmer, `PC2`:paste0("PC", opt$num_pcs+1))
+} else {
+  embeddings_pcs <- embeddings_pca$rotation %>% as_tibble() %>% 
+    mutate(kmer = rownames(embeddings_pca$rotation)) %>% 
+    select(kmer, `PC1`:paste0("PC", opt$num_pcs))
+}
 
 # calculate the importance of each PC
 importance <- summary(embeddings_pca)$importance %>% 
@@ -133,6 +153,10 @@ importance <- summary(embeddings_pca)$importance %>%
 cat("The importance of each PC:\n")
 print(knitr::kable(importance))
 cat("\n\n")
+
+if (opt$drop_first_PC) {
+  cat("Dropping first PC...\n\n")
+}
 
 # load the ordering file
 cat("Loading the ordering file...\n")
@@ -157,7 +181,7 @@ position_to_kmer_mapping <- position_to_kmer_mapping %>%
   arrange(position) %>% group_by(position) %>% 
   summarise(kmers = str_c(kmer, collapse=",")) %>% ungroup()
 
-main_dt <- main_dt %>% select(sample_name, position, `PC1`:paste0("PC", opt$num_pcs))
+main_dt <- main_dt %>% select(sample_name, position, starts_with("PC"))
 
 rm(ordering, embeddings_pcs, embeddings)
 gc()
@@ -182,7 +206,7 @@ for (i in metadata_labels) {
   
   # pivot main dt wider to have one row per sample
   wide_dt <- my_dt %>% group_by(sample_name) %>% pivot_wider(names_from = position,
-                                                             values_from = `PC1`:paste0("PC", opt$num_pcs),
+                                                             values_from = starts_with("PC"),
                                                              names_glue = "position_{position}_{.value}")
   
   # rename the metadata column to class for further operations
@@ -201,7 +225,7 @@ for (i in metadata_labels) {
   # filter out serotypes with less than 100 samples
   dt <- dt %>% group_by(class) %>% filter(n() > min_num_per_category)
   if (nrow(dt) < 90) {
-    cat(paste("Skipping", metadata_label, "\n\n"))
+    cat(paste("Only", nrow(dt), "observations in data. Skipping", metadata_label, "\n\n"))
     next
   }
   
