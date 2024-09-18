@@ -153,6 +153,7 @@ dna <- anchors_to_keep$anchor %>% DNAStringSet(.)
 names(dna) <- anchors_to_keep$anchor
 dna <- as.DNAbin(dna)
 dna.tree <- kmer::cluster(dna)
+saveRDS(dna.tree, file=file.path(temp_dir, "dna.tree.rds"))
 anchor_clusters <- dendextend::cutree(dna.tree, 
                                       k=opt$num_clusters) %>% 
   enframe() %>% 
