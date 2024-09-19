@@ -116,27 +116,48 @@ ordering <- fread(ordering_temp, header=F, sep="\t",
 ordering <- ordering %>% select(sample_name, kmer)
 
 # merge the ordering file with the embeddings PCs
-cat("Merging the ordering file with the embeddings PCs...\n")
+cat("Merging the ordering file with the embeddings...\n")
 
 main_dt <- ordering %>% left_join(embeddings, by="kmer") %>%
-  group_by(sample_name) %>% mutate(position = row_number()) %>% 
-  mutate(position=position-1) %>% ungroup()
+  group_by(sample_name) %>% mutate(cluster = row_number()) %>% 
+  mutate(cluster=cluster-1) %>% ungroup()
 
-position_to_kmer_mapping <- main_dt %>% select(position, kmer) %>% distinct()
-position_to_kmer_mapping <- position_to_kmer_mapping %>% 
-  arrange(position) %>% group_by(position) %>% 
+cluster_to_kmer_mapping <- main_dt %>% select(cluster, kmer) %>% distinct()
+cluster_to_kmer_mapping <- cluster_to_kmer_mapping %>% 
+  arrange(cluster) %>% group_by(cluster) %>% 
   summarise(kmers = str_c(kmer, collapse=",")) %>% ungroup()
 
-main_dt <- main_dt %>% select(sample_name, position, starts_with("embedding"))
-main_dt <- main_dt %>% group_by(sample_name) %>% 
-  pivot_wider(names_from = position,
-              values_from = starts_with("PC"),
-              names_glue = "cluster_{position}_{.value}")
+cat("Pivoting the embeddings to wide format...\n")
+main_dt <- main_dt %>% select(sample_name, cluster, starts_with("embedding"))
+main_dt <- data.table::dcast(setDT(main_dt), sample_name ~ cluster, 
+                             value.var = paste("embedding", 
+                                               1:(ncol(embeddings)-1),
+                                               sep="_"), sep="-")
 
-# get the variance of each embedding column
-high_variance_cols <- colVars(main_dt %>% select(starts_with("cluster"))) %>% 
-  as.data.frame() %>% rownames_to_column("column") %>% 
-  filter(Freq > 0.1) %>% pull(column)
+cat("Grabbing the top", opt$num_embeddings, "embeddings by variance per cluster...\n")
+col_variances <- resample::colVars(main_dt %>% select(starts_with("embedding"))) %>% 
+  enframe() %>% separate(name, into=c("embedding", "cluster"), sep="-")
+
+top_var_cols <- col_variances %>% 
+  group_by(cluster) %>% 
+  slice_max(value, n=opt$num_embeddings, with_ties=F) %>% ungroup() %>% 
+  unite(name, embedding, cluster, sep="-") %>% 
+  pull(name)
+
+main_dt <- main_dt %>% select(sample_name, all_of(top_var_cols))
+
+new_names <- colnames(main_dt %>% select(-sample_name)) %>% 
+  str_extract("(\\d+)-(\\d+)", group=c(1,2)) %>%
+  as.data.frame()
+new_names <- paste("cluster_", new_names$V2, "_embedding_", new_names$V1, sep="") %>% 
+  c("sample_name", .)
+
+colnames(main_dt) <- new_names
+
+# write out the embeddings matrix to a temp file
+embeddings_topVar_file <- file.path(temp_dir, "embeddings_topVar.tsv")
+cat("Writing top variance embeddings to ", embeddings_topVar_file, "\n")
+write_tsv(main_dt, embeddings_topVar_file)
 
 rm(ordering, embeddings_pcs, embeddings)
 gc()
@@ -160,9 +181,7 @@ for (i in metadata_labels) {
   my_dt <- my_dt %>% filter(sample_name %in% all_metadata$sample_name)
   
   # pivot main dt wider to have one row per sample
-  wide_dt <- my_dt %>% group_by(sample_name) %>% pivot_wider(names_from = position,
-                                                             values_from = starts_with("PC"),
-                                                             names_glue = "position_{position}_{.value}")
+  wide_dt <- my_dt
   
   # rename the metadata column to class for further operations
   metadata_label <- i
@@ -298,9 +317,9 @@ saveRDS(all_coef, file.path(temp_dir, "all_glmnet_coef.RDS"))
 # first filter for non-zero coefficients
 # then join on the headers for the significant kmers
 nonzero_coef <- all_coef %>% filter(!grepl("0,", coefficients)) %>% 
-  mutate(position = str_extract(feature, "position_(\\d+)_", group=1)) %>% 
-  mutate(position=as.double(position)) %>% 
-  left_join(position_to_kmer_mapping, by="position") %>% 
-  select(-position)
+  mutate(cluster = str_extract(feature, "cluster_(\\d+)_", group=1)) %>% 
+  mutate(cluster=as.double(cluster)) %>% 
+  left_join(cluster_to_kmer_mapping, by="cluster") %>% 
+  select(-cluster)
 
 nonzero_coef %>% write_tsv(file=coefficients_out, col_names = T, quote = "needed", na = "")
