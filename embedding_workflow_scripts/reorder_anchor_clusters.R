@@ -50,8 +50,6 @@ cat(paste("SPLASH stats file:", opt$splash_stats))
 cat("\n")
 cat(paste("Output file:", opt$output))
 cat("\n")
-cat(paste("Number of anchors to select:", opt$num_anchors))
-cat("\n")
 cat(paste("Temporary directory:", temp_dir))
 cat("\n")
 cat("###################################################################\n\n")
@@ -63,28 +61,31 @@ anchor_clusters <- fread(opt$input_anchor_clusters,
 
 # write out the anchors column to a temporary file
 anchor_file <- file.path(temp_dir, "anchors_to_select.txt")
-write_tsv(anchor_clusters %>% select(anchor), anchor_file, col_names = F, quote="none")
+c("anchor", anchor_clusters$anchor) %>% as.data.frame() %>% write_tsv(anchor_file, quote="none", col_names = F)
 
 # read in the splash stats file (grepping for the anchors in the anchor file)
 cat("Reading in the splash stats file\n")
-read_cmd = paste0("grep -f ", anchor_file, " ", opt$splash_stats)
-splash_stats <- fread(cmd=read_cmd, header = T, select = 1:18)
+read_cmd = paste0("cut -f1-18 | grep -Ff ", anchor_file, " ", opt$splash_stats)
+splash_stats <- fread(cmd=read_cmd, header = T)
+splash_stats <- splash_stats %>% filter(anchor %in% anchor_clusters$anchor)
 
 # join the splash stats file with the anchor clusters file
 cat("Joining the splash stats file with the anchor clusters file\n")
 anchor_clusters_with_stats <- anchor_clusters %>%
-  left_join(splash_stats, by = "anchor")
+  left_join(splash_stats, by = "anchor") %>% select(cluster_id, anchor, effect_size_bin, number_nonzero_samples)
 
 # reorder the cluster ids based on the mean effect size and number of nonzero samples
 cat("Reordering the cluster ids based on the mean effect size and number of nonzero samples\n")
 anchor_clusters_with_stats <- anchor_clusters_with_stats %>%
   group_by(cluster_id) %>%
-  mutate(mean_effect_size = mean(effect_size),
-         num_nonzero_samples = sum(num_nonzero_samples)) %>%
-  arrange(desc(mean_effect_size), desc(num_nonzero_samples)) %>%
-  mutate(new_cluster_id = cur_group_id()) %>% 
+  mutate(mean_effect_size = mean(effect_size_bin),
+         mean_nonzero_samples = mean(number_nonzero_samples)) %>%
+  mutate(sort_val = mean_effect_size * mean_nonzero_samples) %>%
+  arrange(desc(sort_val), cluster_id)  %>%
+  ungroup() %>% 
+  mutate(new_cluster_id = as.numeric(factor(cluster_id, levels = unique(cluster_id)))) %>% 
   ungroup() %>% group_by(new_cluster_id) %>%
-  arrange(new_cluster_id, desc(effect_size_bin * num_nonzero_samples)) %>%
+  arrange(new_cluster_id, desc(effect_size_bin * number_nonzero_samples)) %>%
   ungroup() %>% select(new_cluster_id, anchor)
 
 # write out the new anchor clusters file
