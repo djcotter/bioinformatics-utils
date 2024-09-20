@@ -183,7 +183,14 @@ for (i in metadata_labels) {
   # fit glmnet
   cat("Fitting cv glmnet model...\n")
   time_fit <- Sys.time()
-  fit <- cv.glmnet(X, y, family="multinomial", type.measure="class")
+  fit <- tryCatch(cv.glmnet(X, y, family="multinomial", type.measure="class"), error=function(e) NA)
+  if (is.na(fit)) {
+    fit <- tryCatch(cv.glmnet(X, y, family="multinomial", type.measure="class"), error=function(e) NA)
+  }
+  if (is.na(fit)) {
+    cat("Error in glmnet after trying twice. Skipping...\n\n")
+    next
+  }
   cat("Model fit in ", round(Sys.time() - time_fit, 2), " seconds.\n")
   cat("Using the model for lambda.min\n")
   
@@ -227,11 +234,11 @@ for (i in metadata_labels) {
   confusion_matrix <- table(y_test, y_pred)
   confusion_matrix <- as.data.frame.matrix(confusion_matrix)
   confusion_matrix <- rownames_to_column(confusion_matrix, "true_class")
-  confusion_matrix <- gather(confusion_matrix, "predicted_class", "count", -true_class)
+  confusion_matrix <- gather(confusion_matrix, "predicted_class", "feature_count", -true_class)
   confusion_matrix <- confusion_matrix %>% mutate(true_class = factor(true_class, levels=unique(true_class)),
                                                   predicted_class = factor(predicted_class, levels=unique(predicted_class)))
   
-  p <- ggplot(confusion_matrix, aes(x=true_class, y=predicted_class, fill=count)) +
+  p <- ggplot(confusion_matrix, aes(x=true_class, y=predicted_class, fill=feature_count)) +
     geom_tile(color="white") +
     scale_fill_gradient(low="white", high="steelblue") +
     theme_light() +
@@ -239,7 +246,7 @@ for (i in metadata_labels) {
     labs(x="True class", y="Predicted class", fill="Count") 
   
   # add accuracy and all counts to plot
-  p <- p + geom_text(aes(label=count), vjust=1, size=3) +
+  p <- p + geom_text(aes(label=feature_count), vjust=1, size=3) +
     ggtitle(paste0(metadata_label, " | Accuracy: ", round(acc, 2),
                    "\nSensitivity: ", round(sens, 2),
                    " | Specificity: ", round(spec, 2)))
