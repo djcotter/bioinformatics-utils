@@ -42,8 +42,7 @@ if (!file.exists(opt$lookup_table)) {
 }
 
 # define output files 
-anchors_only_out = paste0(opt$output_prefix, "_anchor_list.txt")
-anchor_clusters_out = paste0(opt$output_prefix, "_anchor_clusters.tsv")
+anchors_only_out = opt$output
 
 # create a temporary directory to store intermediate files
 if (!is.null(opt$temp_dir)) {
