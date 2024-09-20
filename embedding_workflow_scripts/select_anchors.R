@@ -137,4 +137,5 @@ anchors_to_keep <- anchors_to_keep %>%
 ## write the output -----------
 cat(paste("Writing", nrow(anchors_to_keep), "anchors to", anchors_only_out))
 cat("\n")
-anchors_only %>% write.table(anchors_only_out, row.names=FALSE, col.names=FALSE, quote=FALSE)
+anchors_to_keep$anchor %>% 
+  write.table(anchors_only_out, row.names=FALSE, col.names=FALSE, quote=FALSE)
