@@ -43,7 +43,7 @@ if (!is.null(opt$temp_dir)) {
 
 # cat to screen the input files, output files, temp dir and paramaters
 cat("\n###################################################################\n")
-cat("Running select_important_anchors.R with the following parameters:\n")
+cat("Running reorder_anchor_clusters.R with the following parameters:\n")
 cat(paste("Input clusters:", opt$input_anchor_clusters))
 cat("\n")
 cat(paste("SPLASH stats file:", opt$splash_stats))
@@ -59,14 +59,20 @@ cat("Reading in the anchor clusters file\n")
 anchor_clusters <- fread(opt$input_anchor_clusters, 
                     header = F, col.names = c("cluster_id", "anchor"))
 
-# write out the anchors column to a temporary file
-anchor_file <- file.path(temp_dir, "anchors_to_select.txt")
-c("anchor", anchor_clusters$anchor) %>% as.data.frame() %>% write_tsv(anchor_file, quote="none", col_names = F)
-
 # read in the splash stats file (grepping for the anchors in the anchor file)
 cat("Reading in the splash stats file\n")
-read_cmd = paste0("cut -f1-18 | grep -Ff ", anchor_file, " ", opt$splash_stats)
-splash_stats <- fread(cmd=read_cmd, header = T)
+## load the data
+# read in the headers of the input file to identify the effect_size_bin column
+headers <- fread(opt$splash_stats, nrows = 1, header=T)
+effect_size_bin_col <- grep("effect_size_bin", names(headers))
+
+# load the input file using awk to filter out rows with effect size < 0.7
+EFFECT_SIZE_CUTOFF = 0.7
+load_cmd <- paste0("cat ", opt$splash_stats, " | awk '{OFS=\"\t\"}{if ($", effect_size_bin_col, " >= ", EFFECT_SIZE_CUTOFF, ") print $0}'")
+if (grepl(".gz$", opt$input)) {
+  load_cmd = paste0("z", load_cmd)
+}
+splash_stats <- fread(cmd=load_cmd, header = T)
 splash_stats <- splash_stats %>% filter(anchor %in% anchor_clusters$anchor)
 
 # join the splash stats file with the anchor clusters file
