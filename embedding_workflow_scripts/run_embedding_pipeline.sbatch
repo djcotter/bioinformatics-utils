@@ -2,8 +2,8 @@
 #
 #SBATCH --job-name=wrap_embeddings
 #SBATCH -p horence,normal
-#SBATCH -c 16
-#SBATCH --mem=128G
+#SBATCH -c 24
+#SBATCH --mem=256G
 #SBATCH --time=16:00:00
 
 ## load modules
@@ -30,7 +30,7 @@ LOOKUP_TABLE=
 TEMP_DIR=
 
 ## Define paramaters
-NUM_CPUS=16
+NUM_CPUS=24
 TRANSLATION_TABLE=11
 
 ## select anchors
