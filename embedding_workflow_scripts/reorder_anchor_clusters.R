@@ -72,7 +72,7 @@ load_cmd <- paste0("cat ", opt$splash_stats, " | awk '{OFS=\"\t\"}{if ($", effec
 if (grepl(".gz$", opt$input)) {
   load_cmd = paste0("z", load_cmd)
 }
-splash_stats <- fread(cmd=load_cmd, header = T)
+splash_stats <- fread(cmd=load_cmd, header = T, select = 1:18)
 splash_stats <- splash_stats %>% filter(anchor %in% anchor_clusters$anchor)
 
 # join the splash stats file with the anchor clusters file
