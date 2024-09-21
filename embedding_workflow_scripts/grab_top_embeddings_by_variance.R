@@ -50,7 +50,7 @@ if (!is.null(opt$temp_dir)) {
 ## print a summary of the arguments
 cat("\n####################\n")
 cat("Running grab_top_embeddings_by_variance.R with the following arguments:\n")
-car("Ordering file: ", opt$ordering, "\n")
+cat("Ordering file: ", opt$ordering, "\n")
 cat("Embeddings file: ", opt$embeddings, "\n")
 cat("Output file: ", opt$output, "\n")
 cat("Num embeddings to keep per anchor: ", opt$num_to_keep, "\n")
@@ -92,7 +92,7 @@ cluster_to_kmer_mapping <- cluster_to_kmer_mapping %>%
   summarise(kmers = str_c(kmer, collapse=",")) %>% ungroup()
 
 # write out the cluster to kmer mapping
-cluster_to_kmer_mapping_file <- paste0(output_prefix, "_cluster_to_kmer_mapping.tsv")
+cluster_to_kmer_mapping_file <- paste0(opt$output_prefix, "_cluster_to_kmer_mapping.tsv")
 cat("Writing cluster to kmer mapping to ", cluster_to_kmer_mapping_file, "\n")
 write_tsv(cluster_to_kmer_mapping, cluster_to_kmer_mapping_file)
 

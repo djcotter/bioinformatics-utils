@@ -183,11 +183,11 @@ for (i in metadata_labels) {
   # fit glmnet
   cat("Fitting cv glmnet model...\n")
   time_fit <- Sys.time()
-  fit <- tryCatch(cv.glmnet(X, y, family="multinomial", type.measure="class"), error=function(e) NA)
-  if (is.na(fit)) {
-    fit <- tryCatch(cv.glmnet(X, y, family="multinomial", type.measure="class"), error=function(e) NA)
+  fit <- tryCatch(cv.glmnet(X, y, family="multinomial", type.measure="class"), error=function(e) NULL)
+  if (is.null(fit)) {
+    fit <- tryCatch(cv.glmnet(X, y, family="multinomial", type.measure="class"), error=function(e) NULL)
   }
-  if (is.na(fit)) {
+  if (is.null(fit)) {
     cat("Error in glmnet after trying twice. Skipping...\n\n")
     next
   }
