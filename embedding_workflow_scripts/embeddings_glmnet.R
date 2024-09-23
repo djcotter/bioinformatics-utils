@@ -27,6 +27,8 @@ option_list <- list(
               type="character")
 )
 
+setDTthreads(threads=0L)
+
 
 # parse command line arguments
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -89,16 +91,17 @@ cat("Using the following metadata labels:\n\t", paste(metadata_labels, collapse 
 # load embeddings
 cat("\nLoading embeddings...\n")
 # copy the embeddings file to the temp directory to speed up I/O
-embeddings_temp <- file.path(temp_dir, "embeddings_temp.tsv")
-if (!file.exists(embeddings_temp)) {
+if (grepl(".feather", opt$embeddings)) {
+  cat("Using feather to read data frame...\n")
+  main_dt <- feather::read_feather(opt$embeddings)
+} else {
+  cat("Copying data to scratch and using fread on temp file...\n")
+  embeddings_temp <- file.path(temp_dir, "glmnet_embeddings_temp.tsv")
   system(paste("cp", opt$embeddings, embeddings_temp))
+  main_dt <- fread(embeddings_temp, header = T)
 }
-embeddings <- fread(embeddings_temp, header = T)
 
-main_dt <- embeddings
 
-rm(embeddings)
-gc()
 
 ## Fit all glmnet models --------
 all_coef <- NULL

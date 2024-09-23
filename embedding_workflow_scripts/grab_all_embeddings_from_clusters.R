@@ -1,9 +1,9 @@
-# grab_top_embeddings_by_variance.R
+# grab_all_embeddings_from_clusters.R
 # Daniel Cotter
 # 2024-09-18
 
 # This script takes in one embeddings file and the ordering file and outputs a new
-# embeddings tsv with samples as rows and the top 10 embeddings by variance per cluster as columns.
+# embeddings tsv with samples as rows and all embeddings for the first N clusters defined.
 
 
 ## import packages --------
@@ -20,8 +20,8 @@ suppressPackageStartupMessages(library(furrr))
 option_list <- list(
   make_option(c("-e", "--embeddings"), help="Embeddings file", type="character"),
   make_option(c("-o", "--ordering"), help="Ordering file", type="character"),
-  make_option(c("-n", "--num_to_keep"), help="Number of components to keep per cluster", 
-              type="integer", default = 10),
+  make_option(c("-n", "--num_clusters_to_keep"), help="Number of components to keep per cluster", 
+              type="integer", default = 200),
   make_option(c("-p", "--output_prefix"), help="Output prefix.", type="character"),
   make_option(c("--temp_dir"), help="Temporary directory to store intermediate files", 
               type="character"),
@@ -58,7 +58,7 @@ cat("\n####################\n")
 cat("Running grab_top_embeddings_by_variance.R with the following arguments:\n")
 cat("Ordering file: ", opt$ordering, "\n")
 cat("Embeddings file: ", opt$embeddings, "\n")
-cat("Output file: ", opt$output_prefix, "\n")
+cat("Output prefix: ", opt$output_prefix, "\n")
 cat("Num embeddings to keep per anchor: ", opt$num_to_keep, "\n")
 cat("Temporary directory: ", temp_dir, "\n")
 cat("####################\n\n")
@@ -119,33 +119,33 @@ write_tsv(cluster_to_kmer_mapping, cluster_to_kmer_mapping_file)
 cat("Formatting the embeddings for downstream use...\n")
 
 # define a function to grab
-grab_top_variance_columns <- function(in_file, num_cols=10) {
+grab_all_embedding_columns <- function(in_file) {
   cluster_num = str_extract(in_file, "cluster_(\\d+).csv", group=1) %>% as.integer()
-  temp_dt <- fread(in_file, header=T, nThread = 1) %>% select(sample_name, starts_with("embedding")) # first filter for only one cluster
+  temp_dt <- fread(in_file, header=T, nThread = 1) %>% 
+    select(sample_name, starts_with("embedding")) # first filter for only one cluster
   colnames(temp_dt) <- ifelse(grepl("embedding", colnames(temp_dt)),
-                      yes=paste0("cluster_", cluster_num, "_", colnames(temp_dt)),
-                      no = colnames(temp_dt))
-  top_var_cols <- resample::colVars(temp_dt %>% select(starts_with("cluster"))) %>%
-    enframe() %>%
-    slice_max(n=num_cols, value, with_ties = FALSE) %>%
-    pull(name)
-  temp_dt <- temp_dt %>% select(sample_name, all_of(top_var_cols)) %>% arrange(sample_name)
+                              yes=paste0("cluster_", cluster_num, "_", colnames(temp_dt)),
+                              no = colnames(temp_dt))
+  temp_dt <- temp_dt %>% arrange(sample_name)
   if (cluster_num!=0) {
     temp_dt <- temp_dt %>% select(-sample_name)
   }
   return(temp_dt)
 }
 
-cat("Calculating top variance components per cluster...\n")
-num_clusters <- max(unique(main_dt$cluster))
-top_var_dt <- future_map_dfc(cluster_files,
-                             \(x) grab_top_variance_columns(x, num_cols=opt$num_to_keep),
+
+cluster_dt <- future_map_dfc(cluster_files[1:opt$num_clusters_to_keep],
+                             \(x) grab_all_embedding_columns(x),
                              .progress = T)
-top_var_dt <- top_var_dt %>% relocate(sample_name)
+cluster_dt <- cluster_dt %>% relocate(sample_name)
 
 # write out the embeddings matrix to a temp file
-embeddings_topVar_file <- paste0(opt$output_prefix, "_top_variance_embeddings.tsv")
-cat("Writing top variance embeddings to ", embeddings_topVar_file, "\n")
-write_tsv(top_var_dt, embeddings_topVar_file, col_names = T, quote="needed")
-embeddings_feather <- file.path(temp_dir, "top_variance_embeddings.feather")
-feather::write_feather(cluster_dt, embeddings_feather)
+embeddings_cluster_file <- paste0(opt$output_prefix, "_embeddings_for_", opt$num_clusters_to_keep, "_clusters.tsv")
+cat("Writing embeddings for first ", opt$num_clusters_to_keep, " clusters to ", embeddings_cluster_file, "\n")
+write_tsv(cluster_dt, embeddings_cluster_file, col_names = T, quote="needed")
+embeddings_cluster_feather <- file.path(temp_dir, 
+                                    basename(paste0(opt$output_prefix, 
+                                                    "_embeddings_for_", 
+                                                    opt$num_clusters_to_keep,
+                                                    "_clusters.feather")))
+feather::write_feather(cluster_dt, embeddings_cluster_feather)
