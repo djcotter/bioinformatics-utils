@@ -2,8 +2,8 @@
 #
 #SBATCH --job-name=wrap_embeddings
 #SBATCH -p horence,normal
-#SBATCH -c 24
-#SBATCH --mem=256G
+#SBATCH -c 16
+#SBATCH --mem=128G
 #SBATCH --time=16:00:00
 
 ## load modules
@@ -30,7 +30,7 @@ LOOKUP_TABLE=
 TEMP_DIR=
 
 ## Define paramaters
-NUM_CPUS=24
+NUM_CPUS=16
 TRANSLATION_TABLE=11
 
 ## select anchors
@@ -92,12 +92,14 @@ if ! test -f ${OUTPUT_PREFIX}_unique_AA_esm_embeddings.tsv; then
 fi
 
 ## format embeddings for glmnet -- variance
-if ! test -f ${OUTPUT_PREFIX}_top_variance_embeddings.tsv; then
+if ! test -f ${TEMP_DIR}/top_variance_embeddings.feather; then
   printf "Formatting embeddings for glmnet\n"
   Rscript --vanilla ${FORMAT_EMBEDDINGS_VARIANCE} --embeddings ${OUTPUT_PREFIX}_unique_AA_esm_embeddings.tsv \
     --ordering ${OUTPUT_PREFIX}_kmer_decomposition_k54_s54_kmer_ordering.tsv \
     --output_prefix ${OUTPUT_PREFIX} \
-    --temp_dir ${TEMP_DIR}
+    --temp_dir ${TEMP_DIR} \
+    --num_to_keep 40 \
+    --num_threads ${NUM_CPUS}
 fi
 
 ## format embeddings for glmnet -- PCs
@@ -109,8 +111,8 @@ fi
 ## submit glmnet job -- Variance
 if ! test -f ${OUTPUT_PREFIX}_topVar_glmnet_nonzero_coefficients.tsv; then
   printf "Submitting batch job for top variance glmnet\n"
-  sbatch -p horence,normal -c 16 --mem=256G --time=4:00:00 Rscript --vanilla ${GLMNET_SCRIPT} \
-    --embeddings ${OUTPUT_PREFIX}_top_variance_embeddings.tsv \
+  srun -p horence,normal -c 16 --mem=256G --time=4:00:00 Rscript --vanilla ${GLMNET_SCRIPT} \
+    --embeddings ${TEMP_DIR}/top_variance_embeddings.feather \
     --metadata ${METADATA} \
     --output_prefix ${OUTPUT_PREFIX}_topVar_glmnet \
     --even_classes \
@@ -118,7 +120,7 @@ if ! test -f ${OUTPUT_PREFIX}_topVar_glmnet_nonzero_coefficients.tsv; then
 fi
   
 # ## submit glmnet job -- PCs
-# sbatch -p horence,normal -c 16 --mem=256G --time=4:00:00 Rscript --vanilla ${GLMNET_SCRIPT} \
+# srun -p horence,normal -c 16 --mem=256G --time=4:00:00 Rscript --vanilla ${GLMNET_SCRIPT} \
 #   --embeddings ${OUTPUT_PREFIX}_top_pcs_embeddings.tsv \
 #   --metadata ${METADATA} \
 #   --output_prefix ${OUTPUT_PREFIX}_topPCs_glmnet \

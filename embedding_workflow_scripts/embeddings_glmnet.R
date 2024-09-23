@@ -94,6 +94,7 @@ cat("\nLoading embeddings...\n")
 if (grepl(".feather", opt$embeddings)) {
   cat("Using feather to read data frame...\n")
   main_dt <- feather::read_feather(opt$embeddings)
+  system(paste("rm", opt$embeddings))
 } else {
   cat("Copying data to scratch and using fread on temp file...\n")
   embeddings_temp <- file.path(temp_dir, "glmnet_embeddings_temp.tsv")

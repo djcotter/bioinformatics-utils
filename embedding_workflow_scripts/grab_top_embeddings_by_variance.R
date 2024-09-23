@@ -137,7 +137,6 @@ grab_top_variance_columns <- function(in_file, num_cols=10) {
 }
 
 cat("Calculating top variance components per cluster...\n")
-num_clusters <- max(unique(main_dt$cluster))
 top_var_dt <- future_map_dfc(cluster_files,
                              \(x) grab_top_variance_columns(x, num_cols=opt$num_to_keep),
                              .progress = T)
