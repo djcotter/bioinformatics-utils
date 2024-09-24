@@ -54,7 +54,7 @@ if ! test -f ${OUTPUT_PREFIX}_REORDERED_anchor_clusters.txt; then
     --temp_dir ${TEMP_DIR}
 fi
 
-if !${OUTPUT_PREFIX}_selected_anchors_top4000.txt; then
+if ! test -f ${OUTPUT_PREFIX}_selected_anchors_top4000.txt; then
   # filter the clusters to only include the top 4000
   awk '$1 <= 4000' ${OUTPUT_PREFIX}_REORDERED_anchor_clusters.txt > ${OUTPUT_PREFIX}_REORDERED_anchor_clusters_top4000.txt
   cut -f2 ${OUTPUT_PREFIX}_REORDERED_anchor_clusters_top4000.txt > ${OUTPUT_PREFIX}_selected_anchors_top4000.txt
