@@ -51,7 +51,7 @@ if (!is.null(opt$temp_dir)) {
 # define future plans
 setDTthreads(opt$num_threads)
 plan(multicore, workers=opt$num_threads)
-options(future.globals.maxSize=1000*1024^2)
+options(future.globals.maxSize=4000*1024^2)
 
 ## print a summary of the arguments
 cat("\n####################\n")
@@ -147,4 +147,4 @@ embeddings_topVar_file <- paste0(opt$output_prefix, "_top_variance_embeddings.ts
 cat("Writing top variance embeddings to ", embeddings_topVar_file, "\n")
 write_tsv(top_var_dt, embeddings_topVar_file, col_names = T, quote="needed")
 embeddings_feather <- file.path(temp_dir, "top_variance_embeddings.feather")
-feather::write_feather(cluster_dt, embeddings_feather)
+feather::write_feather(top_var_dt, embeddings_feather)
