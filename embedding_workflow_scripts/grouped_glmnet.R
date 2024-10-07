@@ -14,6 +14,7 @@ suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(optparse))
 suppressPackageStartupMessages(library(resample))
 suppressPackageStartupMessages(library(furrr))
+suppressPackageStartupMessages(library(glmnet))
 
 
 ## parse arguments --------
@@ -32,7 +33,7 @@ option_list <- list(
               type="character"),
   make_option(c("--even_classes"), help="Sample equal numbers of each class", action="store_true", default=FALSE),
   make_option(c("-s", "--min_samples_per_category"), help="Minimum number of samples per metadata category", 
-              type="integer", default = 30),
+              type="integer", default = 30)
 )
 
 # parse command line arguments
@@ -58,6 +59,10 @@ if (!is.null(opt$temp_dir)) {
 setDTthreads(opt$num_threads)
 plan(multicore, workers=opt$num_threads)
 options(future.globals.maxSize=4000*1024^2)
+
+## specify the output files
+coefficients_out = paste0(opt$output_prefix, "_nonzero_coefficients.tsv")
+confusion_matrix_out = paste0(opt$output_prefix, "_confusion_matrices.pdf")
 min_num_per_category <- opt$min_samples_per_category
 
 ## print a summary of the arguments
@@ -150,7 +155,7 @@ grab_glmnet_significant_features <- function(in_file, metadata_label, metadata) 
                       yes=paste0("cluster_", cluster_num, "_", colnames(temp_dt)),
                       no = colnames(temp_dt))
   glm_dt <- temp_dt %>% left_join(metadata, by="sample_name") %>% select(-sample_name)
-  glm_dt <- glm_dt %>% rename(class=!!metadata_label) %>% filter(!is.na(class))
+  glm_dt <- glm_dt %>% dplyr::rename(class=!!metadata_label) %>% filter(!is.na(class))
   glm_dt <- glm_dt %>% group_by(class) %>% filter(n() > min_num_per_category) %>% ungroup()
   X <- as.matrix(glm_dt %>% select(starts_with("cluster_")))
   y <- as.factor(glm_dt$class)
@@ -173,6 +178,10 @@ grab_glmnet_significant_features <- function(in_file, metadata_label, metadata) 
   return(temp_dt)
 }
 
+## perform glmnet
+all_coef <- NULL
+pdf(confusion_matrix_out)
+
 for (i in metadata_labels) {
   metadata_label <- i
   cat("Fitting glmnet model for metadata label: ", i, "\n")
@@ -188,10 +197,10 @@ for (i in metadata_labels) {
   curr_metadata <- my_metadata %>% select(sample_name, all_of(i))
   top_glm_dt <- top_glm_dt %>% 
     left_join(curr_metadata, by="sample_name") %>% 
-    rename(class=!!i)
+    dplyr::rename(class=!!i)
 
   dt <- top_glm_dt %>% filter(!is.na(class))
-  dt <- my_dt %>% group_by(class) %>% filter(n() > min_num_per_category) %>% ungroup()
+  dt <- dt %>% group_by(class) %>% filter(n() > min_num_per_category) %>% ungroup()
   
   if (nrow(dt) < 90) {
     cat(paste("Only", nrow(dt), "observations in data. Skipping", metadata_label, "\n\n"))
