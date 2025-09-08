@@ -143,3 +143,7 @@ def main():
     # Save to output file
     bed_df.to_csv(args.output_bed, sep="\t", index=False, header=False)
     print(f"Processed bed file saved to {args.output_bed}")
+
+
+if __name__ == "__main__":
+    main()
