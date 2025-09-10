@@ -144,6 +144,11 @@ def main():
     )
 
     # Save to output file
+    # the output order is sample_name, start, stop, split, metadata (if exists)
+    if "metadata" in bed_df.columns:
+        bed_df = bed_df[["sample_name", "start", "stop", "split", "metadata"]]
+    else:
+        bed_df = bed_df[["sample_name", "start", "stop", "split"]]
     bed_df.to_csv(args.output_bed, sep="\t", index=False, header=False)
     print(f"Processed bed file saved to {args.output_bed}")
 
