@@ -129,6 +129,9 @@ def main():
     if args.add_metadata:
         metadata_dict = load_metadata(args.add_metadata)
         bed_df["metadata"] = bed_df["sample_name"].map(metadata_dict)
+        # remove rows with NA or empty metadata
+        bed_df = bed_df.dropna(subset=["metadata"])
+        bed_df = bed_df[bed_df["metadata"] != ""]
 
     # Assign splits
     bed_df = assign_splits(
