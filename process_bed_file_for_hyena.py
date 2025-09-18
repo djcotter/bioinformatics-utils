@@ -70,6 +70,11 @@ def parse_arguments():
         default=0.15,
         help="Proportion of data to use for testing.",
     )
+    parser.add_argument(
+        "--balanced_training",
+        action="store_true",
+        help="Use balanced training set based on smallest metadata class.",
+    )
     return parser.parse_args()
 
 
@@ -89,17 +94,71 @@ def load_metadata(metadata_path):
 
 
 def assign_splits(
-    df, train_size, val_size, test_size, group_by_prefix, prefix_delimiter
+    df,
+    train_size,
+    val_size,
+    test_size,
+    group_by_prefix,
+    prefix_delimiter,
+    stratify_metadata=False,
+    balanced_training=False,
 ):
+    if balanced_training and "metadata" in df.columns:
+        # Balanced training set: use train_size of smallest metadata class, then split remainder
+        train_list = []
+        val_list = []
+        test_list = []
+        min_class_size = df["metadata"].value_counts().min()
+        n_train_per_class = int(train_size * min_class_size)
+        val_prop = val_size / (val_size + test_size)
+        for meta_class, group in df.groupby("metadata"):
+            group = group.sample(frac=1, random_state=42)
+            train_samples = group.iloc[:n_train_per_class]
+            remaining = group.iloc[n_train_per_class:]
+            n_val = int(val_prop * len(remaining))
+            val_samples = remaining.iloc[:n_val]
+            test_samples = remaining.iloc[n_val:]
+            train_samples = train_samples.copy()
+            val_samples = val_samples.copy()
+            test_samples = test_samples.copy()
+            train_samples["split"] = "train"
+            val_samples["split"] = "val"
+            test_samples["split"] = "test"
+            train_list.append(train_samples)
+            val_list.append(val_samples)
+            test_list.append(test_samples)
+        df = pd.concat(train_list + val_list + test_list, ignore_index=True)
+        return df
     if group_by_prefix:
         df["prefix"] = df["sample_name"].apply(lambda x: x.split(prefix_delimiter)[0])
-        unique_prefixes = df["prefix"].unique()
-        train_prefixes, temp_prefixes = train_test_split(
-            unique_prefixes, train_size=train_size, random_state=42
-        )
-        val_prefixes, test_prefixes = train_test_split(
-            temp_prefixes, test_size=test_size / (test_size + val_size), random_state=42
-        )
+        # If stratify_metadata is True and metadata column exists, stratify by metadata class
+        if stratify_metadata and "metadata" in df.columns:
+            # For each prefix, get its metadata class
+            prefix_meta = df.groupby("prefix")["metadata"].first()
+            # Stratified split of prefixes by metadata class
+            train_prefixes, temp_prefixes = train_test_split(
+                prefix_meta.index,
+                train_size=train_size,
+                stratify=prefix_meta.values,
+                random_state=42,
+            )
+            temp_meta = prefix_meta[temp_prefixes]
+            val_prefixes, test_prefixes = train_test_split(
+                temp_meta.index,
+                test_size=test_size / (test_size + val_size),
+                stratify=temp_meta.values,
+                random_state=42,
+            )
+        else:
+            unique_prefixes = df["prefix"].unique()
+            train_prefixes, temp_prefixes = train_test_split(
+                unique_prefixes, train_size=train_size, random_state=42
+            )
+            val_prefixes, test_prefixes = train_test_split(
+                temp_prefixes,
+                test_size=test_size / (test_size + val_size),
+                random_state=42,
+            )
 
         split_dict = {}
         for prefix in train_prefixes:
@@ -112,10 +171,26 @@ def assign_splits(
         df["split"] = df["prefix"].map(split_dict)
         df.drop(columns=["prefix"], inplace=True)
     else:
-        df["split"] = np.random.choice(
-            ["train", "val", "test"], size=len(df), p=[train_size, val_size, test_size]
-        )
-
+        if stratify_metadata and "metadata" in df.columns:
+            train_df, temp_df = train_test_split(
+                df, train_size=train_size, stratify=df["metadata"], random_state=42
+            )
+            val_df, test_df = train_test_split(
+                temp_df,
+                test_size=test_size / (test_size + val_size),
+                stratify=temp_df["metadata"],
+                random_state=42,
+            )
+            train_df["split"] = "train"
+            val_df["split"] = "val"
+            test_df["split"] = "test"
+            df = pd.concat([train_df, val_df, test_df], ignore_index=True)
+        else:
+            df["split"] = np.random.choice(
+                ["train", "val", "test"],
+                size=len(df),
+                p=[train_size, val_size, test_size],
+            )
     return df
 
 
@@ -141,6 +216,8 @@ def main():
         args.test_size,
         args.group_by_prefix,
         args.prefix_delimiter,
+        stratify_metadata=bool(args.add_metadata),
+        balanced_training=args.balanced_training,
     )
 
     # Save to output file
