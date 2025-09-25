@@ -234,7 +234,7 @@ def main():
         bed_df = bed_df[["sample_name", "start", "stop", "split"]]
 
     if args.duplicate_samples > 0:
-        with open(args.ouput_bed, "w") as f:
+        with open(args.output_bed, "w") as f:
             for _, row in bed_df.iterrows():
                 line = "\t".join(map(str, row))
                 if row["split"] == "train":
