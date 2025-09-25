@@ -75,6 +75,12 @@ def parse_arguments():
         action="store_true",
         help="Use balanced training set based on smallest metadata class.",
     )
+    parser.add_argument(
+        "--duplicate_samples",
+        type=int,
+        default=0,
+        help="Number of times to duplicate each sample in the output bed file. Used when running with kmer sampling.",
+    )
     return parser.parse_args()
 
 
@@ -226,7 +232,19 @@ def main():
         bed_df = bed_df[["sample_name", "start", "stop", "split", "metadata"]]
     else:
         bed_df = bed_df[["sample_name", "start", "stop", "split"]]
-    bed_df.to_csv(args.output_bed, sep="\t", index=False, header=False)
+
+    if args.duplicate_samples > 0:
+        with open(args.ouput_bed, "w") as f:
+            for _, row in bed_df.iterrows():
+                line = "\t".join(map(str, row))
+                if row["split"] == "train":
+                    for _ in range(args.duplicate_samples):
+                        f.write(line + "\n")
+                else:
+                    f.write(line + "\n")
+    else:
+        bed_df.to_csv(args.output_bed, sep="\t", index=False, header=False)
+
     print(f"Processed bed file saved to {args.output_bed}")
 
 
